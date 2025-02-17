@@ -1,4 +1,5 @@
 #include "../includes/WebServ.h"
+#include "../includes/Client.hpp"
 
 Server::Server(int port) {
 	serverSocket = socket(AF_INET, SOCK_STREAM, 0);

@@ -2,6 +2,7 @@
 #define CLIENT_HPP
 
 #include "WebServ.h"
+#include <string>
 
 class Client {
 	public:

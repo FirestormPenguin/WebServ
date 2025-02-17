@@ -4,13 +4,14 @@
 #include "WebServ.h"
 
 class HttpResponse {
-	public:
-		HttpResponse(int statusCode, const std::string &body);
-		std::string toString() const;
+public:
+	HttpResponse(int statusCode, const std::string &body);
+	std::string toString() const;
 
-	private:
-		int statusCode;
-		std::string body;
+private:
+	int statusCode;
+	std::string body;
+	std::string intToString(int num) const;
 };
 
 #endif

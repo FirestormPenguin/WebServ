@@ -2,6 +2,7 @@
 #define HTTPREQUEST_HPP
 
 #include "WebServ.h"
+# include <string>
 
 class HttpRequest {
 	public:
