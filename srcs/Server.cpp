@@ -1,12 +1,14 @@
 #include "../includes/WebServ.h"
+#include "../includes/Server.hpp"
 #include "../includes/Client.hpp"
 
-Server::Server(int port) {
+Server::Server(int port) : running(true){
 	serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (serverSocket == -1) {
 		std::cerr << "Error creating socket" << std::endl;
 		exit(1);
 	}
+
 	struct sockaddr_in serverAddr;
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
@@ -26,7 +28,7 @@ Server::Server(int port) {
 }
 
 Server::~Server() {
-	close(serverSocket);
+	stop();
 }
 
 void Server::run() {
@@ -62,8 +64,46 @@ void Server::acceptConnection() {
 
 void Server::handleClient(int fd) {
 	std::string request = clients[fd].receiveRequest();
+	
+	std::cout << "Request received:\n" << request << std::endl;
+
+	if (request.empty()) {
+		std::cerr << "Error: empty request received" << std::endl;
+		close(fd);
+		clients.erase(fd);
+		return;
+	}
+
 	HttpRequest httpRequest(request);
-	HttpResponse httpResponse(200, "Hello, World!");
-	clients[fd].sendResponse(httpResponse.toString());
+
+	std::string body = "<html><body><h1>Welcome to WebServ!</h1></body></html>";
+	HttpResponse httpResponse(200, body);
+	
+	std::string response = httpResponse.toString();
+	std::cout << "Response being sent:\n" << response << std::endl;
+
+	clients[fd].sendResponse(response);
+
+	sleep(1);
 	close(fd);
+	clients.erase(fd);
+}
+
+
+void Server::stop() {
+	running = false;
+
+	for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+		close(it->first);
+	}
+
+	clients.clear();
+	pollFds.clear();
+
+	if (serverSocket != -1) {
+		close(serverSocket);
+		serverSocket = -1;
+	}
+
+	std::cout << "Server stopped safely." << std::endl;
 }

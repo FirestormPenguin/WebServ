@@ -1,8 +1,7 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-#include "WebServ.h"
-#include <string>
+# include "WebServ.h"
 
 class Client {
 	public:

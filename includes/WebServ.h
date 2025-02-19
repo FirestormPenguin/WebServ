@@ -27,9 +27,4 @@
 # include <algorithm>
 # include <poll.h>
 
-# include "Server.hpp"
-# include "Client.hpp"
-# include "HttpRequest.hpp"
-# include "HttpResponse.hpp"
-
 #endif

@@ -1,48 +1,39 @@
 NAME = webserv
 
-S		= srcs/
-O		= objs/
-I		= includes/
+SRC_DIR = ./srcs
+OBJ_DIR = ./objs
 
-SRCS =	Server.cpp \
-		HttpRequest.cpp \
-		HttpResponse.cpp \
-		main.cpp
+SRCS =	$(SRC_DIR)/Server.cpp \
+		$(SRC_DIR)/Client.cpp \
+		$(SRC_DIR)/HttpRequest.cpp \
+		$(SRC_DIR)/HttpResponse.cpp \
+		$(SRC_DIR)/main.cpp
 
 CC = c++
 
-FLAGS = -Wall -Wextra -Werror -std=c++98
+FLAGS = -Wall -Wextra -Werror -I./include -O2 -std=c++98
 
-SRCS	:= $(foreach file,$(SRCS),$S$(file))
-OBJS	= $(SRCS:$S%=$O%.o)
-DEPS	= $(SRCS:$S%=$D%.d)
+RM = rm -rf
+OBJ = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
-all : $(NAME)
+all: obj_dir $(NAME)
 
-$O:
-	@mkdir $@
+$(NAME): $(OBJ)
+	@$(CC) $(OBJ) $(FLAGS) -o $(NAME)
 
-$(OBJS): | $O
-
-$(OBJS): $O%.o: $S%
-	@echo "Compiling $^: "
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(dir $@)
 	@$(CC) $(FLAGS) -c $< -o $@
-	@echo "✓"
 
-$(NAME): $(OBJS)
-	@echo "Assembling $(NAME)"
-	@$(CC) $^ -o $@
-	@mkdir -p uploads
+obj_dir:
+	@mkdir -p $(OBJ_DIR)
 
-clean :
-	rm -rf $(O)
-	rm -rf uploads
-	find . -name "*.index.html" -type f -delete
+clean:
+	@$(RM) $(OBJ_DIR)
 
-fclean : clean
-	rm -rf ${NAME}
+fclean: clean
+	@$(RM) $(NAME)
 
-re : fclean all
+re: fclean all
 
-
-.PHONY:		all clean fclean re
+.PHONY: all clean fclean re norm obj_dir

@@ -1,12 +1,24 @@
 #include "../includes/WebServ.h"
+#include "../includes/Server.hpp"
+#include <csignal>
 
-int main(int argc, char* argv[]) {
-	int port = 8080;
-	if (argc == 2)
-		port = std::atoi(argv[1]);
-	
-	Server server(port);
+Server* serverInstance = NULL;
+
+void signalHandler(int signum) {
+	if (serverInstance) {
+		std::cout << "\nStopping server..." << std::endl;
+		serverInstance->stop();
+	}
+	exit(signum);
+}
+
+int main() {
+	Server server(8080);
+	serverInstance = &server;
+
+	signal(SIGINT, signalHandler);
+	std::cout << "\nServer running..." << std::endl;
 	server.run();
-	
+
 	return 0;
 }

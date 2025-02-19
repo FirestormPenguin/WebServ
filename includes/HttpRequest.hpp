@@ -1,8 +1,7 @@
 #ifndef HTTPREQUEST_HPP
 #define HTTPREQUEST_HPP
 
-#include "WebServ.h"
-# include <string>
+# include "WebServ.h"
 
 class HttpRequest {
 	public:

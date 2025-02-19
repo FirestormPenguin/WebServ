@@ -1,4 +1,5 @@
 #include "../includes/WebServ.h"
+#include "../includes/HttpRequest.hpp"
 
 HttpRequest::HttpRequest(const std::string &rawRequest) {
 	parseRequest(rawRequest);
