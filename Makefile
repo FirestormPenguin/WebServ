@@ -3,15 +3,12 @@ NAME = webserv
 SRC_DIR = ./srcs
 OBJ_DIR = ./objs
 
+CC = c++
+FLAGS = -Wall -Wextra -Werror -I./include -O2 -std=c++98
+
 SRCS =	$(SRC_DIR)/Server.cpp \
 		$(SRC_DIR)/Client.cpp \
-		$(SRC_DIR)/HttpRequest.cpp \
-		$(SRC_DIR)/HttpResponse.cpp \
 		$(SRC_DIR)/main.cpp
-
-CC = c++
-
-FLAGS = -Wall -Wextra -Werror -I./include -O2 -std=c++98
 
 RM = rm -rf
 OBJ = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
@@ -36,4 +33,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re norm obj_dir
+.PHONY: all clean fcle	an re norm obj_dir

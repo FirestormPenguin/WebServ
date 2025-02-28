@@ -1,109 +1,125 @@
-#include "../includes/WebServ.h"
 #include "../includes/Server.hpp"
-#include "../includes/Client.hpp"
 
-Server::Server(int port) : running(true){
+Server::Server(int port)
+{
+	createSocket();
+	bindSocket(port);
+	listenSocket();
+}
+
+Server::~Server()
+{
+	close(serverSocket);
+}
+
+void Server::createSocket()
+{
 	serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (serverSocket == -1) {
-		std::cerr << "Error creating socket" << std::endl;
+	if (serverSocket == -1)
+	{
+		std::cerr << "Error: Cannot create socket" << std::endl;
 		exit(1);
 	}
+}
 
+void Server::bindSocket(int port)
+{
 	struct sockaddr_in serverAddr;
+	memset(&serverAddr, 0, sizeof(serverAddr));
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
 	serverAddr.sin_port = htons(port);
+
 	if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
-		std::cerr << "Error binding socket" << std::endl;
+		std::cerr << "Error: Cannot bind socket" << std::endl;
 		exit(1);
 	}
-	if (listen(serverSocket, SOMAXCONN) == -1) {
-		std::cerr << "Error listening on socket" << std::endl;
+}
+
+void Server::listenSocket()
+{
+	if (listen(serverSocket, 10) == -1)
+	{
+		std::cerr << "Error: Cannot listen on socket" << std::endl;
 		exit(1);
 	}
-	pollfd serverPollFd;
+	std::cout << "Server is listening on port..." << std::endl;
+
+	struct pollfd serverPollFd;
 	serverPollFd.fd = serverSocket;
 	serverPollFd.events = POLLIN;
-	pollFds.push_back(serverPollFd);
+	clients.push_back(serverPollFd);
+
 }
 
-Server::~Server() {
-	stop();
+void Server::handleNewConnection()
+{
+	struct sockaddr_in clientAddr;
+	socklen_t clientLen = sizeof(clientAddr);
+	int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientLen);
+
+	if (clientSocket == -1)
+	{
+		std::cerr << "Error: Cannot accept connection" << std::endl;
+		return;
+	}
+
+	std::cout << "New client connected! Socket: " << clientSocket << std::endl;
+
+	struct pollfd clientPollFd;
+	clientPollFd.fd = clientSocket;
+	clientPollFd.events = POLLIN;
+	clients.push_back(clientPollFd);
 }
 
-void Server::run() {
-	while (true) {
-		if (poll(&pollFds[0], pollFds.size(), -1) == -1) {
-			std::cerr << "Error in poll" << std::endl;
-			exit(1);
+void Server::handleClient(size_t index)
+{
+	int clientSocket = clients[index].fd;
+	Client client(clientSocket);
+
+	std::string request = client.receiveRequest();
+	if (request.empty())
+	{
+		std::cout << "Client " << clientSocket << " disconnected" << std::endl;
+		close(clientSocket);
+		clients.erase(clients.begin() + index);
+		return;
+	}
+
+	std::cout << "Received request from client " << clientSocket << ":\n" << request << std::endl;
+
+	std::string response =
+		"HTTP/1.1 200 OK\r\n"
+		"Content-Length: 13\r\n"
+		"Content-Type: text/plain\r\n\r\n"
+		"Hello, World!";
+
+	client.sendResponse(response);
+}
+
+void Server::run()
+{
+	while (true)
+	{
+		int pollCount = poll(clients.data(), clients.size(), TIMEOUT);
+		if (pollCount == -1) {
+			std::cerr << "Error: poll() failed" << std::endl;
+			break;
 		}
-		for (size_t i = 0; i < pollFds.size(); ++i) {
-			if (pollFds[i].revents & POLLIN) {
-				if (pollFds[i].fd == serverSocket) {
-					acceptConnection();
-				} else {
-					handleClient(pollFds[i].fd);
+
+		for (size_t i = 0; i < clients.size(); ++i)
+		{
+			if (clients[i].revents & POLLIN)
+			{
+				if (clients[i].fd == serverSocket)
+				{
+					handleNewConnection();
+				}
+				else
+				{
+					handleClient(i);
 				}
 			}
 		}
 	}
-}
-
-void Server::acceptConnection() {
-	int clientSocket = accept(serverSocket, NULL, NULL);
-	if (clientSocket == -1) {
-		std::cerr << "Error accepting connection" << std::endl;
-		return;
-	}
-	pollfd clientPollFd;
-	clientPollFd.fd = clientSocket;
-	clientPollFd.events = POLLIN;
-	pollFds.push_back(clientPollFd);
-	clients[clientSocket] = Client(clientSocket);
-}
-
-void Server::handleClient(int fd) {
-	std::string request = clients[fd].receiveRequest();
-	
-	std::cout << "Request received:\n" << request << std::endl;
-
-	if (request.empty()) {
-		std::cerr << "Error: empty request received" << std::endl;
-		close(fd);
-		clients.erase(fd);
-		return;
-	}
-
-	HttpRequest httpRequest(request);
-
-	std::string body = "<html><body><h1>Welcome to WebServ!</h1></body></html>";
-	HttpResponse httpResponse(200, body);
-	
-	std::string response = httpResponse.toString();
-	std::cout << "Response being sent:\n" << response << std::endl;
-
-	clients[fd].sendResponse(response);
-
-	sleep(1);
-	close(fd);
-	clients.erase(fd);
-}
-
-
-void Server::stop() {
-	running = false;
-
-	for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
-		close(it->first);
-	}
-
-	clients.clear();
-	pollFds.clear();
-
-	if (serverSocket != -1) {
-		close(serverSocket);
-		serverSocket = -1;
-	}
-
-	std::cout << "Server stopped safely." << std::endl;
 }

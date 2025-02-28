@@ -1,25 +1,33 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-# include "WebServ.h"
-# include "Client.hpp"
-# include "HttpRequest.hpp"
-# include "HttpResponse.hpp"
+#include "Client.hpp"
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <vector>
+#include <poll.h>
+
+#define MAX_CLIENTS 10
+#define TIMEOUT 5000
 
 class Server {
-	public:
-		Server(int port);
-		~Server();
-		void run();
-		void stop();
-	private:
-		int serverSocket;
-		bool running;
-		std::vector<struct pollfd> pollFds;
-		std::map<int, Client> clients;
+public:
+	Server(int port);
+	~Server();
+	void run();
 
-		void acceptConnection();
-		void handleClient(int fd);
+private:
+	int serverSocket;
+	std::vector<struct pollfd> clients;
+
+	void createSocket();
+	void bindSocket(int port);
+	void listenSocket();
+	void handleNewConnection();
+	void handleClient(size_t index);
 };
 
 #endif

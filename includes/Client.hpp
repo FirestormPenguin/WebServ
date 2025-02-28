@@ -1,18 +1,21 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-# include "WebServ.h"
+#include "Server.hpp"
+#include <iostream>
+#include <unistd.h>
+#include <cstring>
 
 class Client {
-	public:
-		Client(int socket);
-		Client();
-		~Client();
-		std::string receiveRequest();
-		void sendResponse(const std::string &response);
-
-	private:
-		int clientSocket;
+public:
+	Client(int socket);
+	~Client();
+	
+	std::string receiveRequest();
+	void sendResponse(const std::string &response);
+	
+private:
+	int clientSocket;
 };
 
 #endif
