@@ -21,7 +21,12 @@ std::string Client::receiveRequest()
 	return std::string(buffer, bytesRead);
 }
 
-void Client::sendResponse(const std::string &response)
+int Client::sendResponse(const std::string &response)
 {
-	send(clientSocket, response.c_str(), response.length(), 0);
+	int bytesSent = send(clientSocket, response.c_str(), response.length(), 0);
+	if (bytesSent == -1)
+	{
+		std::cerr << "Error: send() failed for client " << clientSocket << std::endl;
+	}
+	return bytesSent;
 }

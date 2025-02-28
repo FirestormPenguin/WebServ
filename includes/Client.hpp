@@ -6,16 +6,17 @@
 #include <unistd.h>
 #include <cstring>
 
-class Client {
-public:
-	Client(int socket);
-	~Client();
-	
-	std::string receiveRequest();
-	void sendResponse(const std::string &response);
-	
-private:
-	int clientSocket;
+class Client
+{
+	public:
+		Client(int socket);
+		~Client();
+		
+		std::string receiveRequest();
+		int sendResponse(const std::string &response);
+		
+	private:
+		int clientSocket;
 };
 
 #endif

@@ -9,6 +9,11 @@ Server::Server(int port)
 
 Server::~Server()
 {
+	std::cout << "Shutting down server..." << std::endl;
+	for (size_t i = 0; i < clients.size(); ++i)
+	{
+		close(clients[i].fd);
+	}
 	close(serverSocket);
 }
 
@@ -30,8 +35,10 @@ void Server::bindSocket(int port)
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
 	serverAddr.sin_port = htons(port);
 
-	if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
+	if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1)
+	{
 		std::cerr << "Error: Cannot bind socket" << std::endl;
+		close(serverSocket);
 		exit(1);
 	}
 }
@@ -41,6 +48,7 @@ void Server::listenSocket()
 	if (listen(serverSocket, 10) == -1)
 	{
 		std::cerr << "Error: Cannot listen on socket" << std::endl;
+		close(serverSocket);
 		exit(1);
 	}
 	std::cout << "Server is listening on port..." << std::endl;
@@ -64,6 +72,13 @@ void Server::handleNewConnection()
 		return;
 	}
 
+	if (clients.size() >= MAX_CLIENTS)
+	{
+		std::cerr << "Error: Too many connections" << std::endl;
+		close(clientSocket);
+		return;
+	}
+
 	std::cout << "New client connected! Socket: " << clientSocket << std::endl;
 
 	struct pollfd clientPollFd;
@@ -78,11 +93,11 @@ void Server::handleClient(size_t index)
 	Client client(clientSocket);
 
 	std::string request = client.receiveRequest();
+
 	if (request.empty())
 	{
 		std::cout << "Client " << clientSocket << " disconnected" << std::endl;
-		close(clientSocket);
-		clients.erase(clients.begin() + index);
+		removeClient(index);
 		return;
 	}
 
@@ -94,7 +109,30 @@ void Server::handleClient(size_t index)
 		"Content-Type: text/plain\r\n\r\n"
 		"Hello, World!";
 
-	client.sendResponse(response);
+	int bytesSent = client.sendResponse(response);
+	if (bytesSent == -1)
+	{
+		std::cerr << "Error: Failed to send response to client " << clientSocket << std::endl;
+		removeClient(index);
+		return;
+	}
+
+	std::cout << "Response sent to client " << clientSocket << std::endl;
+	char buffer[1];
+	int recvResult = recv(clientSocket, buffer, 1, 0);
+	if (recvResult == 0 || recvResult == -1)
+	{
+		std::cout << "Client " << clientSocket << " closed the connection." << std::endl;
+		removeClient(index);
+	}
+}
+
+void Server::removeClient(size_t index)
+{
+	if (index >= clients.size()) return;
+	std::cout << "Closing connection: " << clients[index].fd << std::endl;
+	close(clients[index].fd);
+	clients.erase(clients.begin() + index);
 }
 
 void Server::run()
@@ -102,7 +140,8 @@ void Server::run()
 	while (true)
 	{
 		int pollCount = poll(clients.data(), clients.size(), TIMEOUT);
-		if (pollCount == -1) {
+		if (pollCount == -1)
+		{
 			std::cerr << "Error: poll() failed" << std::endl;
 			break;
 		}
@@ -119,6 +158,11 @@ void Server::run()
 				{
 					handleClient(i);
 				}
+			}
+			else if (clients[i].revents & (POLLERR | POLLHUP | POLLNVAL))
+			{
+				std::cerr << "Client " << clients[i].fd << " has an error. Disconnecting..." << std::endl;
+				removeClient(i);
 			}
 		}
 	}
