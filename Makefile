@@ -1,40 +1,26 @@
+CXX = c++
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -Iinclude/
+
+SRC = src/main.cpp \
+      src/Server.cpp \
+      src/http/Response.cpp
+
+OBJ = $(SRC:.cpp=.o)
 NAME = webserv
 
-<<<<<<< HEAD
-SRC_DIR = ./srcs
-OBJ_DIR = ./objs
-
-SRCS =	$(SRC_DIR)/Server.cpp \
-		$(SRC_DIR)/Client.cpp \
-		$(SRC_DIR)/HttpRequest.cpp \
-		$(SRC_DIR)/HttpResponse.cpp \
-		$(SRC_DIR)/main.cpp
-
-CC = c++
-
-FLAGS = -Wall -Wextra -Werror -I./include -O2 -std=c++98
-
-RM = rm -rf
-OBJ = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
-
-all: obj_dir $(NAME)
+all: $(NAME)
 
 $(NAME): $(OBJ)
-	@$(CC) $(OBJ) $(FLAGS) -o $(NAME)
+	$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(dir $@)
-	@$(CC) $(FLAGS) -c $< -o $@
-
-obj_dir:
-	@mkdir -p $(OBJ_DIR)
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	@$(RM) $(OBJ_DIR)
+	rm -f $(OBJ)
 
 fclean: clean
-	@$(RM) $(NAME)
+	rm -f $(NAME)
 
 re: fclean all
 
-.PHONY: all clean fclean re norm obj_dir
