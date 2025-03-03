@@ -8,6 +8,9 @@ FLAGS = -Wall -Wextra -Werror -I./include -O2 -std=c++98
 
 SRCS =	$(SRC_DIR)/Server.cpp \
 		$(SRC_DIR)/Client.cpp \
+		$(SRC_DIR)/HttpRequest.cpp \
+		$(SRC_DIR)/HttpResponse.cpp \
+		$(SRC_DIR)/Config.cpp \
 		$(SRC_DIR)/main.cpp
 
 RM = rm -rf

@@ -10,6 +10,7 @@ class Client
 {
 	public:
 		Client(int socket);
+		
 		~Client();
 		
 		std::string receiveRequest();
