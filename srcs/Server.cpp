@@ -67,6 +67,7 @@ void Server::run()
 				if (pollFds[i].fd == serverSocket) 
 				{
 					acceptConnection();
+					// handleClient(pollFds[i + 1].fd);
 				} 
 				else 
 				{
