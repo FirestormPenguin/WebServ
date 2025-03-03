@@ -1,5 +1,6 @@
 NAME = webserv
 
+<<<<<<< HEAD
 SRC_DIR = ./srcs
 OBJ_DIR = ./objs
 
