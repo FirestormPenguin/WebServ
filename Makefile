@@ -3,6 +3,7 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -Iinclude/
 
 SRC = src/main.cpp \
       src/Server.cpp \
+      src/Config.cpp \
       src/http/Response.cpp
 
 OBJ = $(SRC:.cpp=.o)

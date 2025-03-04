@@ -7,13 +7,15 @@ class Response {
 private:
     int statusCode;
     std::string content;
+    std::string filePath;
+
+    std::string getStatusMessage(int code) const;
+    std::string getContentType(const std::string& path) const;
+    std::string readFile(const std::string& path) const;
 
 public:
     Response(int code, const std::string& path);
     std::string getResponse() const;
-
-private:
-    std::string getContentType(const std::string& path) const;
 };
 
 #endif
