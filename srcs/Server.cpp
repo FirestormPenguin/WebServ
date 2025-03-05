@@ -10,7 +10,7 @@ Server::Server(const std::string &configFile)
 	rootDir = config.get("root");
 
 	std::cout << "Server Name: " << serverName << std::endl;
-	std::cout << "Listening on port: " << port << std::endl;
+	std::cout << "Set listening on port: " << port << std::endl;
 	std::cout << "Root directory: " << rootDir << std::endl;
 
 	serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -37,12 +37,14 @@ Server::Server(const std::string &configFile)
 		exit(1);
 	}
 
+	std::cout << "Server is listening on port " << port << std::endl;
+
 	pollfd serverPollFd;
 	serverPollFd.fd = serverSocket;
 	serverPollFd.events = POLLIN;
 	pollFds.push_back(serverPollFd);
 
-	std::cout << "Server is listening on port " << port << std::endl;
+	
 }
 
 Server::~Server()

@@ -17,6 +17,7 @@ class HttpResponse
 		std::string body;
 		std::map<int, std::string> statusMessages;
 
+		std::string getContentType(const std::string& path) const;
 		void initializeStatusMessages();
 };
 
