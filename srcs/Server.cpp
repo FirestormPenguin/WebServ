@@ -123,13 +123,27 @@ void Server::handleClient(int fd)
 	}
 
 	HttpRequest httpRequest(request);
-	HttpResponse httpResponse(200, "Hello, World!");
+	HttpResponse httpRes(200, "Hello, World!");
 
 	std::map<int, Client>::iterator it2 = clients.find(fd);
 	if (it2 != clients.end())
 	{
-		it2->second.sendResponse(httpResponse.toString());
+		it2->second.sendResponse(httpRes.toString());
 	}
+
+	// std::string response;
+
+	// if (request.find("GET /upload") != std::string::npos)
+	// {
+	// 	HttpResponse res(200, "./www/upload.html");
+	// 	response = res.sendResponse(httpRes.toString());
+	// } else if (request.find("GET / ") != std::string::npos || request.find("GET /index") != std::string::npos || request.find("GET / HTTP/1.1") != std::string::npos) {
+	// 	Response res(200, "./www/index.html");
+	// 	response = res.sendResponse(httpRes.toString());
+	// } else {
+	// 	Response res(404, "./www/error/404.html");
+	// 	response = res.sendResponse(httpRes.toString());
+	// }
 
 	std::cout << "Response sent to client " << fd << std::endl;
 
