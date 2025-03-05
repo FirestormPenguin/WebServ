@@ -22,7 +22,7 @@ int main()
 
 	try
 	{
-		Server server("config.conf");
+		Server server("webserv.conf");
 		globalServer = &server;
 		server.run();
 	}

@@ -106,8 +106,6 @@ void Server::acceptConnection()
 
 void Server::handleClient(int fd)
 {
-	std::cout << "Handling client: " << fd << std::endl;
-
 	std::map<int, Client>::iterator it = clients.find(fd);
 	std::string request;
 	if (it != clients.end())
