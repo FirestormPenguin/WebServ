@@ -19,7 +19,8 @@ void HttpRequest::parseRequest(const std::string &rawRequest)
 	while (std::getline(requestStream, line) && line != "\r")
 	{
 		size_t delimiter = line.find(": ");
-		if (delimiter != std::string::npos) {
+		if (delimiter != std::string::npos)
+		{
 			std::string key = line.substr(0, delimiter);
 			std::string value = line.substr(delimiter + 2);
 			if (!value.empty() && value[value.size() - 1] == '\r')
@@ -33,11 +34,12 @@ void HttpRequest::parseRequest(const std::string &rawRequest)
 	if (headers.find("Content-Length") != headers.end())
 	{
 		int contentLength = atoi(headers["Content-Length"].c_str());
-		char *buffer = new char[contentLength + 1];
-		requestStream.read(buffer, contentLength);
-		buffer[contentLength] = '\0';
-		body = std::string(buffer);
-		delete[] buffer;
+		if (contentLength > 0)
+		{
+			std::string tempBody(contentLength, '\0');
+			requestStream.read(&tempBody[0], contentLength);
+			body = tempBody;
+		}
 	}
 }
 

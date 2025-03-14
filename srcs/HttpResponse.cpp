@@ -13,7 +13,8 @@ void HttpResponse::initializeStatusMessages()
 	statusMessages[500] = "Internal Server Error";
 }
 
-std::string HttpResponse::getContentType(const std::string& path) const {
+std::string HttpResponse::getContentType(const std::string& path) const
+{
 	std::map<std::string, std::string> contentTypes;
 	contentTypes[".html"] = "text/html";
 	contentTypes[".css"] = "text/css";
@@ -24,9 +25,11 @@ std::string HttpResponse::getContentType(const std::string& path) const {
 	contentTypes[".gif"] = "image/gif";
 
 	size_t pos = path.find_last_of('.');
-	if (pos != std::string::npos) {
+	if (pos != std::string::npos)
+	{
 		std::string ext = path.substr(pos);
-		if (contentTypes.find(ext) != contentTypes.end()) {
+		if (contentTypes.find(ext) != contentTypes.end())
+		{
 			return contentTypes[ext];
 		}
 	}
@@ -36,6 +39,11 @@ std::string HttpResponse::getContentType(const std::string& path) const {
 std::string HttpResponse::toString() const
 {
 	std::ostringstream response;
+	std::string contentType = getContentType("index.html");
+
+	if (body[0] == '{' || body[0] == '[')
+		contentType = "application/json";
+
 	response << "HTTP/1.1 " << statusCode << " " 
 			 << (statusMessages.count(statusCode) ? statusMessages.at(statusCode) : "Unknown") << "\r\n"
 			 << "Content-Length: " << body.length() << "\r\n"

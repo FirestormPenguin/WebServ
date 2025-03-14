@@ -6,7 +6,7 @@ Server* globalServer = NULL;
 
 void handleSignal(int signal)
 {
-	signal  = 0;
+	signal = 0;
 	if (globalServer)
 	{
 		std::cout << "\nShutting down server gracefully..." << std::endl;
