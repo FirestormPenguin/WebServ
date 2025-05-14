@@ -17,10 +17,15 @@ std::string HttpResponse::toString() const
 {
 	std::ostringstream response;
 	response << "HTTP/1.1 " << statusCode << " " 
-			 << (statusMessages.count(statusCode) ? statusMessages.at(statusCode) : "Unknown") << "\r\n"
-			 << "Content-Length: " << body.length() << "\r\n"
+			 << (statusMessages.count(statusCode) ? statusMessages.at(statusCode) : "Unknown") << "\r\n";
+	
+	response << "Content-Length: " << body.length() << "\r\n"
 			 << "Content-Type: text/plain\r\n"
-			 << "Connection: close\r\n\r\n"
-			 << body;
+			 << "Connection: close\r\n";
+	
+	response << "\r\n";
+
+	response << body;
+	
 	return response.str();
 }

@@ -59,31 +59,35 @@ void Server::run()
 			std::cerr << "Error in poll" << std::endl;
 			exit(1);
 		}
-
 		for (size_t i = 0; i < pollFds.size(); ++i) 
 		{
+			int fd = pollFds[i].fd;
+			// 1. Gestione disconnessione/errori
+			if (pollFds[i].revents & (POLLHUP | POLLERR)) 
+			{
+				std::cout << "Client " << fd << " disconnected or error occurred." << std::endl;
+				close(fd);
+				clients.erase(fd);
+				pollFds.erase(pollFds.begin() + i);
+				--i;
+				continue;
+			}
+			// 2. Gestione nuovi dati
 			if (pollFds[i].revents & POLLIN) 
 			{
-				if (pollFds[i].fd == serverSocket) 
+				if (fd == serverSocket)
 				{
 					acceptConnection();
-					// handleClient(pollFds[i + 1].fd);
 				} 
 				else 
 				{
-					handleClient(pollFds[i].fd);
+					handleClient(fd);
 				}
-			}
-			else if (pollFds[i].revents & (POLLHUP | POLLERR)) 
-			{
-				std::cout << "Client " << pollFds[i].fd << " disconnected or error occurred." << std::endl;
-				close(pollFds[i].fd);
-				pollFds.erase(pollFds.begin() + i);
-				--i;
 			}
 		}
 	}
 }
+
 
 void Server::acceptConnection()
 {
@@ -105,6 +109,7 @@ void Server::acceptConnection()
 	std::cout << "New client connected! Socket: " << clientSocket << std::endl;
 }
 
+
 void Server::handleClient(int fd)
 {
 	std::cout << "Handling client: " << fd << std::endl;
@@ -120,21 +125,44 @@ void Server::handleClient(int fd)
 	{
 		std::cerr << "Client " << fd << " disconnected or sent an invalid request." << std::endl;
 		close(fd);
+
+		// Rimuovi da pollFds
+		for (size_t i = 0; i < pollFds.size(); ++i)
+		{
+			if (pollFds[i].fd == fd)
+			{
+				pollFds.erase(pollFds.begin() + i);
+				break;
+			}
+		}
+
+		clients.erase(fd);
 		return;
 	}
 
 	HttpRequest httpRequest(request);
 	HttpResponse httpResponse(200, "Hello, World!");
 
-	std::map<int, Client>::iterator it2 = clients.find(fd);
-	if (it2 != clients.end())
+	if (it != clients.end())
 	{
-		it2->second.sendResponse(httpResponse.toString());
+		it->second.sendResponse(httpResponse.toString());
 	}
 
 	std::cout << "Response sent to client " << fd << std::endl;
 
+	// Chiudi connessione (per semplicità)
 	close(fd);
+
+	for (size_t i = 0; i < pollFds.size(); ++i)
+	{
+		if (pollFds[i].fd == fd)
+		{
+			pollFds.erase(pollFds.begin() + i);
+			break;
+		}
+	}
+
+	clients.erase(fd);
 }
 
 
