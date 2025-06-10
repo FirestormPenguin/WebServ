@@ -16,6 +16,7 @@
 #include <arpa/inet.h>
 #include <sstream>
 #include "Client.hpp"
+#include "HttpRequest.hpp"
 
 class Server {
 	private:

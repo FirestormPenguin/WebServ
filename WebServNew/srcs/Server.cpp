@@ -40,25 +40,22 @@ Server::~Server() {
 
 void Server::run() {
 	fd_set readFds;
-	fd_set writeFds;
 	int maxFd;
 
 	while (true) {
 		FD_ZERO(&readFds);
-		FD_ZERO(&writeFds);
 		FD_SET(listenFd, &readFds);
 		maxFd = listenFd;
 
-		// Aggiungiamo tutti i client
-		std::map<int, Client*>::iterator it;
-		for (it = clients.begin(); it != clients.end(); ++it) {
+		for (std::map<int, Client*>::iterator it = clients.begin(); it != clients.end(); ++it) {
 			int clientFd = it->first;
 			FD_SET(clientFd, &readFds);
-			maxFd = (clientFd > maxFd) ? clientFd : maxFd;
+			if (clientFd > maxFd)
+				maxFd = clientFd;
 		}
 
-		// Aspettiamo attività
-		if (select(maxFd + 1, &readFds, NULL, NULL, NULL) < 0) {
+		int activity = select(maxFd + 1, &readFds, NULL, NULL, NULL);
+		if (activity < 0) {
 			perror("select");
 			break;
 		}
@@ -74,25 +71,40 @@ void Server::run() {
 			}
 		}
 
-		// Dati da client
-		for (it = clients.begin(); it != clients.end(); ) {
+		// Dati dai client
+		std::map<int, Client*>::iterator it = clients.begin();
+		while (it != clients.end()) {
 			int clientFd = it->first;
 			Client* client = it->second;
 
 			if (FD_ISSET(clientFd, &readFds)) {
-				char buffer[4096];
-				ssize_t bytesRead = recv(clientFd, buffer, sizeof(buffer), 0);
+				char buffer[1025]; // +1 per il null terminator
+				ssize_t bytesRead = recv(clientFd, buffer, 1024, 0);
 
 				if (bytesRead <= 0) {
 					std::cout << "Closing client " << clientFd << std::endl;
 					close(clientFd);
 					delete client;
 					clients.erase(it++);
-					continue;
 				} else {
+					buffer[bytesRead] = '\0';
 					client->appendToRecvBuffer(std::string(buffer, bytesRead));
 
-					std::string body = "Hello World\n";
+					// Parsing della richiesta HTTP
+					HttpRequest request(client->getRecvBuffer());
+
+					std::cout << "=== HTTP Request Received ===" << std::endl;
+					std::cout << "Method: " << request.getMethod() << std::endl;
+					std::cout << "Path: " << request.getPath() << std::endl;
+					std::cout << "Version: " << request.getVersion() << std::endl;
+
+					const std::map<std::string, std::string>& headers = request.getHeaders();
+					for (std::map<std::string, std::string>::const_iterator hit = headers.begin(); hit != headers.end(); ++hit) {
+						std::cout << hit->first << ": " << hit->second << std::endl;
+					}
+
+					// Risposta semplice per test
+					std::string body = "Hello World\r\n";
 					std::ostringstream oss;
 					oss << "HTTP/1.1 200 OK\r\n"
 						<< "Content-Type: text/plain\r\n"
@@ -101,19 +113,17 @@ void Server::run() {
 						<< "\r\n"
 						<< body;
 					std::string response = oss.str();
+					send(clientFd, response.c_str(), response.length(), 0);
 
-					// Invio della risposta completa
-					send(clientFd, response.c_str(), response.size(), 0);
-
-					// Chiudo il client
 					std::cout << "Client " << clientFd << " served, closing." << std::endl;
 					close(clientFd);
 					delete client;
 					clients.erase(it++);
-					continue;
 				}
+			} else {
+				++it;
 			}
-			++it;
 		}
 	}
 }
+
