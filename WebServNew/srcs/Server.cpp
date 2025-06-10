@@ -47,6 +47,7 @@ void Server::run() {
 		FD_SET(listenFd, &readFds);
 		maxFd = listenFd;
 
+		// Aggiungo tutti i client attivi al set di lettura
 		for (std::map<int, Client*>::iterator it = clients.begin(); it != clients.end(); ++it) {
 			int clientFd = it->first;
 			FD_SET(clientFd, &readFds);
@@ -60,7 +61,7 @@ void Server::run() {
 			break;
 		}
 
-		// Nuova connessione
+		// Nuova connessione in arrivo
 		if (FD_ISSET(listenFd, &readFds)) {
 			int newFd = accept(listenFd, NULL, NULL);
 			if (newFd >= 0) {
@@ -71,15 +72,14 @@ void Server::run() {
 			}
 		}
 
-		// Dati dai client
-		std::map<int, Client*>::iterator it = clients.begin();
-		while (it != clients.end()) {
+		// Gestione dati da client già connessi
+		for (std::map<int, Client*>::iterator it = clients.begin(); it != clients.end(); ) {
 			int clientFd = it->first;
 			Client* client = it->second;
 
 			if (FD_ISSET(clientFd, &readFds)) {
-				char buffer[1025]; // +1 per il null terminator
-				ssize_t bytesRead = recv(clientFd, buffer, 1024, 0);
+				char buffer[4096];
+				ssize_t bytesRead = recv(clientFd, buffer, sizeof(buffer), 0);
 
 				if (bytesRead <= 0) {
 					std::cout << "Closing client " << clientFd << std::endl;
@@ -87,34 +87,57 @@ void Server::run() {
 					delete client;
 					clients.erase(it++);
 				} else {
-					buffer[bytesRead] = '\0';
 					client->appendToRecvBuffer(std::string(buffer, bytesRead));
 
-					// Parsing della richiesta HTTP
-					HttpRequest request(client->getRecvBuffer());
-
-					std::cout << "=== HTTP Request Received ===" << std::endl;
-					std::cout << "Method: " << request.getMethod() << std::endl;
-					std::cout << "Path: " << request.getPath() << std::endl;
-					std::cout << "Version: " << request.getVersion() << std::endl;
-
-					const std::map<std::string, std::string>& headers = request.getHeaders();
-					for (std::map<std::string, std::string>::const_iterator hit = headers.begin(); hit != headers.end(); ++hit) {
-						std::cout << hit->first << ": " << hit->second << std::endl;
+					// Parse richiesta HTTP minimale: estraggo il path
+					std::string requestStr = client->getRecvBuffer();
+					size_t posMethodEnd = requestStr.find(' ');
+					size_t posPathEnd = std::string::npos;
+					std::string path = "/";
+					if (posMethodEnd != std::string::npos) {
+						size_t posPathStart = posMethodEnd + 1;
+						posPathEnd = requestStr.find(' ', posPathStart);
+						if (posPathEnd != std::string::npos && posPathEnd > posPathStart) {
+							path = requestStr.substr(posPathStart, posPathEnd - posPathStart);
+						}
 					}
 
-					// Risposta semplice per test
-					std::string body = "Hello World\r\n";
-					std::ostringstream oss;
-					oss << "HTTP/1.1 200 OK\r\n"
-						<< "Content-Type: text/plain\r\n"
-						<< "Content-Length: " << body.length() << "\r\n"
-						<< "Connection: close\r\n"
-						<< "\r\n"
-						<< body;
-					std::string response = oss.str();
-					send(clientFd, response.c_str(), response.length(), 0);
+					// Costruisco il path completo del file richiesto
+					std::string filePath = "www" + path;
+					if (filePath[filePath.length() - 1] == '/')
+						filePath += "index.html";
 
+					std::ifstream file(filePath.c_str(), std::ios::in | std::ios::binary);
+					if (file) {
+						std::ostringstream contentStream;
+						contentStream << file.rdbuf();
+						std::string content = contentStream.str();
+
+						std::ostringstream oss;
+						oss << "HTTP/1.1 200 OK\r\n"
+							<< "Content-Type: text/html\r\n"  // TODO: gestire mime type
+							<< "Content-Length: " << content.length() << "\r\n"
+							<< "Connection: close\r\n"
+							<< "\r\n"
+							<< content;
+
+						std::string response = oss.str();
+						send(clientFd, response.c_str(), response.length(), 0);
+					} else {
+						std::string notFound = "<h1>404 Not Found</h1>";
+						std::ostringstream oss;
+						oss << "HTTP/1.1 404 Not Found\r\n"
+							<< "Content-Type: text/html\r\n"
+							<< "Content-Length: " << notFound.length() << "\r\n"
+							<< "Connection: close\r\n"
+							<< "\r\n"
+							<< notFound;
+
+						std::string response = oss.str();
+						send(clientFd, response.c_str(), response.length(), 0);
+					}
+
+					// Chiudo la connessione dopo la risposta (Connection: close)
 					std::cout << "Client " << clientFd << " served, closing." << std::endl;
 					close(clientFd);
 					delete client;
@@ -126,4 +149,3 @@ void Server::run() {
 		}
 	}
 }
-

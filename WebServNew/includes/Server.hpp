@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sstream>
+#include <fstream>
 #include "Client.hpp"
 #include "HttpRequest.hpp"
 
