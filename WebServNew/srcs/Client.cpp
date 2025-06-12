@@ -1,33 +1,32 @@
 #include "Client.hpp"
+#include <sstream>
 
-Client::Client(int fd) : _fd(fd) {}
+Client::Client(int fd) : socketFd(fd), recvBuffer(""), request(NULL) {}
 
-Client::~Client() {}
-
-int Client::getFd() const {
-	return _fd;
+Client::~Client() {
+	if (request)
+		delete request;
 }
 
-void Client::appendToRecvBuffer(const std::string& data) {
-	_recvBuffer += data;
+int Client::getSocketFd() const {
+	return socketFd;
 }
 
-const std::string& Client::getRecvBuffer() const {
-	return _recvBuffer;
+void Client::appendToRecvBuffer(const std::string &data) {
+	recvBuffer += data;
 }
 
-void Client::clearRecvBuffer() {
-	_recvBuffer.clear();
+bool Client::hasCompleteRequest() const {
+	// Verifica semplice: termina con doppio CRLF
+	return recvBuffer.find("\r\n\r\n") != std::string::npos;
 }
 
-void Client::setSendBuffer(const std::string& data) {
-	_sendBuffer = data;
+void Client::parseRequest() {
+	if (request)
+		delete request;
+	request = new Request(recvBuffer);
 }
 
-const std::string& Client::getSendBuffer() const {
-	return _sendBuffer;
-}
-
-void Client::clearSendBuffer() {
-	_sendBuffer.clear();
+Request *Client::getRequest() const {
+	return request;
 }

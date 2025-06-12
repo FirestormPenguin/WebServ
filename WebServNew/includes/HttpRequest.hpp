@@ -1,23 +1,33 @@
-#ifndef HTTPREQUEST_HPP
-#define HTTPREQUEST_HPP
+#ifndef REQUEST_HPP
+#define REQUEST_HPP
 
 #include <string>
 #include <map>
+#include <sstream>
+#include <iostream>
 
-class HttpRequest {
+class Request {
 private:
 	std::string method;
 	std::string path;
 	std::string version;
 	std::map<std::string, std::string> headers;
+	std::string body;
+
+	void parseRequestLine(std::istringstream &stream);
+	void parseHeaders(std::istringstream &stream);
+	void parseBody(std::istringstream &stream);
 
 public:
-	HttpRequest(const std::string& rawRequest);
+	Request(const std::string &rawRequest);
 
-	const std::string& getMethod() const;
-	const std::string& getPath() const;
-	const std::string& getVersion() const;
-	const std::map<std::string, std::string>& getHeaders() const;
+	const std::string &getMethod() const;
+	const std::string &getPath() const;
+	const std::string &getVersion() const;
+	const std::map<std::string, std::string> &getHeaders() const;
+	const std::string &getBody() const;
+
+	std::string getHeaderValue(const std::string &key) const;
 };
 
 #endif

@@ -2,26 +2,23 @@
 #define CLIENT_HPP
 
 #include <string>
+#include "HttpRequest.hpp"
 
 class Client {
-	private:
-		int _fd;
-		std::string _recvBuffer;
-		std::string _sendBuffer;
+private:
+	int socketFd;
+	std::string recvBuffer;
+	Request *request;
 
-	public:
-		Client(int fd);
-		~Client();
+public:
+	Client(int fd);
+	~Client();
 
-		int getFd() const;
-
-		void appendToRecvBuffer(const std::string& data);
-		const std::string& getRecvBuffer() const;
-		void clearRecvBuffer();
-
-		void setSendBuffer(const std::string& data);
-		const std::string& getSendBuffer() const;
-		void clearSendBuffer();
+	int getSocketFd() const;
+	void appendToRecvBuffer(const std::string &data);
+	bool hasCompleteRequest() const;
+	Request *getRequest() const;
+	void parseRequest();
 };
 
 #endif

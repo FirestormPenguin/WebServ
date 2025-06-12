@@ -1,45 +1,71 @@
 #include "HttpRequest.hpp"
-#include <sstream>
-#include <iostream>
 
-HttpRequest::HttpRequest(const std::string& rawRequest) {
+Request::Request(const std::string &rawRequest) {
 	std::istringstream stream(rawRequest);
+
+	parseRequestLine(stream);
+	parseHeaders(stream);
+	parseBody(stream);
+}
+
+void Request::parseRequestLine(std::istringstream &stream) {
 	std::string line;
+	std::getline(stream, line);
+	if (!line.empty() && line[line.size() - 1] == '\r')
+		line.erase(line.size() - 1);
 
-	// Legge la prima riga: metodo, path, versione
-	if (std::getline(stream, line)) {
-		std::istringstream lineStream(line);
-		lineStream >> method >> path >> version;
-	}
+	std::istringstream lineStream(line);
+	lineStream >> method >> path >> version;
+}
 
-	// Legge gli header
-	while (std::getline(stream, line) && line != "\r") {
-		size_t colon = line.find(":");
-		if (colon != std::string::npos) {
-			std::string key = line.substr(0, colon);
-			std::string value = line.substr(colon + 1);
-			// Pulisce eventuali spazi e \r
-			while (!value.empty() && (value[0] == ' ' || value[0] == '\r'))
+void Request::parseHeaders(std::istringstream &stream) {
+	std::string line;
+	while (std::getline(stream, line)) {
+		if (line == "\r" || line.empty())
+			break;
+		if (!line.empty() && line[line.size() - 1] == '\r')
+			line.erase(line.size() - 1);
+
+		size_t pos = line.find(':');
+		if (pos != std::string::npos) {
+			std::string key = line.substr(0, pos);
+			std::string value = line.substr(pos + 1);
+			while (!value.empty() && (value[0] == ' ' || value[0] == '\t'))
 				value.erase(0, 1);
-			while (!value.empty() && (value[value.size() - 1] == '\r'))
-				value.erase(value.size() - 1);
 			headers[key] = value;
 		}
 	}
 }
 
-const std::string& HttpRequest::getMethod() const {
+void Request::parseBody(std::istringstream &stream) {
+	std::ostringstream bodyStream;
+	bodyStream << stream.rdbuf();
+	body = bodyStream.str();
+}
+
+const std::string &Request::getMethod() const {
 	return method;
 }
 
-const std::string& HttpRequest::getPath() const {
+const std::string &Request::getPath() const {
 	return path;
 }
 
-const std::string& HttpRequest::getVersion() const {
+const std::string &Request::getVersion() const {
 	return version;
 }
 
-const std::map<std::string, std::string>& HttpRequest::getHeaders() const {
+const std::map<std::string, std::string> &Request::getHeaders() const {
 	return headers;
+}
+
+const std::string &Request::getBody() const {
+	return body;
+}
+
+std::string Request::getHeaderValue(const std::string &key) const {
+	std::map<std::string, std::string>::const_iterator it = headers.find(key);
+	if (it != headers.end())
+		return it->second;
+	return "";
 }

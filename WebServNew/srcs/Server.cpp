@@ -47,7 +47,6 @@ void Server::run() {
 		FD_SET(listenFd, &readFds);
 		maxFd = listenFd;
 
-		// Aggiungo tutti i client attivi al set di lettura
 		for (std::map<int, Client*>::iterator it = clients.begin(); it != clients.end(); ++it) {
 			int clientFd = it->first;
 			FD_SET(clientFd, &readFds);
@@ -61,7 +60,7 @@ void Server::run() {
 			break;
 		}
 
-		// Nuova connessione in arrivo
+		// Nuova connessione
 		if (FD_ISSET(listenFd, &readFds)) {
 			int newFd = accept(listenFd, NULL, NULL);
 			if (newFd >= 0) {
@@ -72,7 +71,7 @@ void Server::run() {
 			}
 		}
 
-		// Gestione dati da client già connessi
+		// Dati dai client
 		for (std::map<int, Client*>::iterator it = clients.begin(); it != clients.end(); ) {
 			int clientFd = it->first;
 			Client* client = it->second;
@@ -86,62 +85,44 @@ void Server::run() {
 					close(clientFd);
 					delete client;
 					clients.erase(it++);
-				} else {
-					client->appendToRecvBuffer(std::string(buffer, bytesRead));
+					continue;
+				}
 
-					// Parse richiesta HTTP minimale: estraggo il path
-					std::string requestStr = client->getRecvBuffer();
-					size_t posMethodEnd = requestStr.find(' ');
-					size_t posPathEnd = std::string::npos;
-					std::string path = "/";
-					if (posMethodEnd != std::string::npos) {
-						size_t posPathStart = posMethodEnd + 1;
-						posPathEnd = requestStr.find(' ', posPathStart);
-						if (posPathEnd != std::string::npos && posPathEnd > posPathStart) {
-							path = requestStr.substr(posPathStart, posPathEnd - posPathStart);
-						}
+				client->appendToRecvBuffer(std::string(buffer, bytesRead));
+
+				if (client->hasCompleteRequest()) {
+					client->parseRequest();
+					Request* req = client->getRequest();
+
+					// Stampa la richiesta
+					std::cout << "=== HTTP Request Received ===" << std::endl;
+					std::cout << "Method: " << req->getMethod() << std::endl;
+					std::cout << "Path: " << req->getPath() << std::endl;
+					std::cout << "Version: " << req->getVersion() << std::endl;
+					std::map<std::string, std::string> headers = req->getHeaders();
+					for (std::map<std::string, std::string>::iterator h = headers.begin(); h != headers.end(); ++h) {
+						std::cout << h->first << ": " << h->second << std::endl;
 					}
 
-					// Costruisco il path completo del file richiesto
-					std::string filePath = "www" + path;
-					if (filePath[filePath.length() - 1] == '/')
-						filePath += "index.html";
+					// Risposta semplice
+					std::string body = "Hello World\r\n";
+					std::ostringstream oss;
+					oss << "HTTP/1.1 200 OK\r\n"
+						<< "Content-Type: text/plain\r\n"
+						<< "Content-Length: " << body.length() << "\r\n"
+						<< "Connection: close\r\n"
+						<< "\r\n"
+						<< body;
 
-					std::ifstream file(filePath.c_str(), std::ios::in | std::ios::binary);
-					if (file) {
-						std::ostringstream contentStream;
-						contentStream << file.rdbuf();
-						std::string content = contentStream.str();
+					std::string response = oss.str();
+					send(clientFd, response.c_str(), response.length(), 0);
 
-						std::ostringstream oss;
-						oss << "HTTP/1.1 200 OK\r\n"
-							<< "Content-Type: text/html\r\n"  // TODO: gestire mime type
-							<< "Content-Length: " << content.length() << "\r\n"
-							<< "Connection: close\r\n"
-							<< "\r\n"
-							<< content;
-
-						std::string response = oss.str();
-						send(clientFd, response.c_str(), response.length(), 0);
-					} else {
-						std::string notFound = "<h1>404 Not Found</h1>";
-						std::ostringstream oss;
-						oss << "HTTP/1.1 404 Not Found\r\n"
-							<< "Content-Type: text/html\r\n"
-							<< "Content-Length: " << notFound.length() << "\r\n"
-							<< "Connection: close\r\n"
-							<< "\r\n"
-							<< notFound;
-
-						std::string response = oss.str();
-						send(clientFd, response.c_str(), response.length(), 0);
-					}
-
-					// Chiudo la connessione dopo la risposta (Connection: close)
 					std::cout << "Client " << clientFd << " served, closing." << std::endl;
 					close(clientFd);
 					delete client;
 					clients.erase(it++);
+				} else {
+					++it;
 				}
 			} else {
 				++it;
