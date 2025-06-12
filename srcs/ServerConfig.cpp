@@ -16,6 +16,13 @@ const std::vector<LocationConfig>& ServerConfig::getLocations() const {
 	return _locations;
 }
 
+const LocationConfig* ServerConfig::findLocation(const std::string& path) const {
+	(void)path;
+	if (!_locations.empty())
+		return &_locations[0];
+	return NULL;
+}
+
 size_t ServerConfig::parse(const std::vector<std::string>& lines, size_t i) {
 	for (; i < lines.size(); ++i) {
 		const std::string& line = lines[i];

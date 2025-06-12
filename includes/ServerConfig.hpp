@@ -17,7 +17,7 @@ public:
 	int getPort() const;
 	const std::string& getServerName() const;
 	const std::vector<LocationConfig>& getLocations() const;
-
+	const LocationConfig* findLocation(const std::string& path) const;
 	size_t parse(const std::vector<std::string>& lines, size_t i);
 };
 

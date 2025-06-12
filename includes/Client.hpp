@@ -2,23 +2,36 @@
 #define CLIENT_HPP
 
 #include <string>
+#include <netinet/in.h>
+#include <sstream>
+#include <unistd.h>
+#include <iostream>
+#include <fstream>
 #include "HttpRequest.hpp"
+#include "ServerConfig.hpp"
 
 class Client {
 private:
-	int socketFd;
-	std::string recvBuffer;
-	Request *request;
+	int _fd;
+	std::string _recvBuffer;
+	bool _requestComplete;
+	bool _keepAlive;
+
+	std::string _method;
+	std::string _path;
+	std::string _httpVersion;
 
 public:
 	Client(int fd);
 	~Client();
 
-	int getSocketFd() const;
-	void appendToRecvBuffer(const std::string &data);
+	int getFd() const;
+	void appendToBuffer(const std::string& data);
 	bool hasCompleteRequest() const;
-	Request *getRequest() const;
 	void parseRequest();
+	std::string prepareResponse(const ServerConfig& config);
+	bool isKeepAlive() const;
+	void reset();
 };
 
 #endif
