@@ -1,15 +1,20 @@
 #include "Server.hpp"
-#include "Client.hpp"
+#include "ConfigFile.hpp"
+#include "Config.hpp"
 
-int main(int argc, char **argv) {
-	if (argc != 2) {
-		std::cerr << "Usage: ./webserv <port>" << std::endl;
-		return 1;
+int main(int argc, char** argv) {
+	std::string configPath = "webserv.conf";
+	if (argc == 2)
+		configPath = argv[1];
+
+	ConfigFile confFile(configPath);
+	Config config;
+	config.parse(confFile.getLines());
+
+	const std::vector<ServerConfig>& servers = config.getServers();
+	for (size_t i = 0; i < servers.size(); ++i) {
+		Server s(servers[i]);
+		s.run();
 	}
-
-	int port = atoi(argv[1]);
-	Server server(port);
-	server.run();
-
 	return 0;
 }

@@ -1,33 +1,18 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <iostream>
-#include <string>
-#include <cstdio>
-#include <vector>
-#include <map>
-#include <sys/select.h>
-#include <fcntl.h>
-#include <cstring>
-#include <cstdlib>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sstream>
-#include <fstream>
+#include "webserv.hpp"
 #include "Client.hpp"
 #include "HttpRequest.hpp"
+#include "ServerConfig.hpp"
 
 class Server {
-	private:
-		int listenFd;
-		std::map<int, Client*> clients;
+private:
+	ServerConfig _config;
 
-	public:
-		Server(int port);
-		~Server();
-		void run();
+public:
+	Server(const ServerConfig& config);
+	void run();
 };
 
 #endif
