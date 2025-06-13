@@ -4,10 +4,6 @@
 
 LocationConfig::LocationConfig() {}
 
-const std::string& LocationConfig::getPath() const { return _path; }
-const std::string& LocationConfig::getRoot() const { return _root; }
-const std::string& LocationConfig::getIndex() const { return _index; }
-
 size_t LocationConfig::parse(const std::vector<std::string>& lines, size_t i) {
 	std::istringstream iss(lines[i]);
 	std::string keyword;
@@ -26,6 +22,12 @@ size_t LocationConfig::parse(const std::vector<std::string>& lines, size_t i) {
 			std::istringstream iss(line);
 			std::string keyword;
 			iss >> keyword >> _index;
+		}
+		else if (line.find("autoindex") == 0) {
+			std::istringstream iss(line);
+			std::string keyword, value;
+			iss >> keyword >> value;
+			setAutoindex(value == "on");
 		}
 		else {
 			std::cerr << "Invalid directive in location block: " << line << std::endl;

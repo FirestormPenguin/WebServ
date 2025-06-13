@@ -4,18 +4,6 @@
 
 ServerConfig::ServerConfig() : _port(80) {}
 
-int ServerConfig::getPort() const {
-	return _port;
-}
-
-const std::string& ServerConfig::getServerName() const {
-	return _serverName;
-}
-
-const std::vector<LocationConfig>& ServerConfig::getLocations() const {
-	return _locations;
-}
-
 const LocationConfig* ServerConfig::findLocation(const std::string& path) const {
 	(void)path;
 	if (!_locations.empty())
@@ -29,6 +17,13 @@ size_t ServerConfig::parse(const std::vector<std::string>& lines, size_t i) {
 
 		if (line == "}") {
 			return i + 1; // Fine del blocco server
+		}
+		else if (line.find("client_max_body_size") == 0) {
+			std::istringstream iss(line);
+			std::string keyword;
+			size_t size;
+			iss >> keyword >> size;
+			setClientMaxBodySize(size);
 		}
 		else if (line.find("listen") == 0) {
 			std::istringstream iss(line);
@@ -44,6 +39,13 @@ size_t ServerConfig::parse(const std::vector<std::string>& lines, size_t i) {
 			LocationConfig location;
 			i = location.parse(lines, i);
 			_locations.push_back(location);
+		}
+		else if (line.find("error_page") == 0) {
+			std::istringstream iss(line);
+			std::string keyword, path;
+			int code;
+			iss >> keyword >> code >> path;
+			setErrorPage(code, path);
 		}
 		else {
 			std::cerr << "Invalid directive in server block: " << line << std::endl;

@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
+#include <dirent.h>
+#include <sys/stat.h>
+#include "webserv.hpp"
 #include "HttpRequest.hpp"
 #include "ServerConfig.hpp"
 
@@ -25,7 +28,7 @@ public:
 	Client(int fd);
 	~Client();
 
-	int getFd() const;
+	int getFd() const { return _fd; }
 	void appendToBuffer(const std::string& data);
 	bool hasCompleteRequest() const;
 	void parseRequest();

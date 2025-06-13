@@ -13,6 +13,7 @@
 #include <vector>
 #include <map>
 #include <sys/select.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <cstring>
 #include <cstdlib>
