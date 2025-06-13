@@ -30,14 +30,61 @@ void Client::parseRequest() {
 	_requestComplete = true;
 }
 
-static std::string getErrorBody(const ServerConfig& config, int code, const std::string& defaultMsg) {
-	std::string errorPagePath = config.getErrorPage(code);
-	if (!errorPagePath.empty()) {
-		std::ifstream errorFile(errorPagePath.c_str());
-		if (errorFile)
-			return std::string((std::istreambuf_iterator<char>(errorFile)), std::istreambuf_iterator<char>());
+static std::string executeCgi(const std::string& scriptPath, const std::string& cgiBin, const Request& req, const std::string& root) {
+	(void)root;
+	int inPipe[2], outPipe[2];
+	pipe(inPipe);
+	pipe(outPipe);
+
+	pid_t pid = fork();
+	if (pid == 0) {
+		// Figlio: setup pipe e execve
+		dup2(inPipe[0], STDIN_FILENO);
+		dup2(outPipe[1], STDOUT_FILENO);
+		close(inPipe[1]);
+		close(outPipe[0]);
+
+		// Prepara argv
+		char* argv[] = {const_cast<char*>(cgiBin.c_str()), const_cast<char*>(scriptPath.c_str()), NULL};
+
+		// Prepara envp (solo le variabili base, puoi aggiungerne altre)
+		std::string scriptFilename = scriptPath;
+		std::string requestMethod = req.getMethod();
+		std::ostringstream oss;
+		oss << req.getBody().size();
+		std::string contentLength = oss.str();
+		std::string contentType = "application/x-www-form-urlencoded";
+		std::string queryString = ""; // puoi estrarre dalla URL se serve
+
+		char* envp[] = {
+			const_cast<char*>(("SCRIPT_FILENAME=" + scriptFilename).c_str()),
+			const_cast<char*>(("REQUEST_METHOD=" + requestMethod).c_str()),
+			const_cast<char*>(("CONTENT_LENGTH=" + contentLength).c_str()),
+			const_cast<char*>(("CONTENT_TYPE=" + contentType).c_str()),
+			const_cast<char*>(("QUERY_STRING=" + queryString).c_str()),
+			NULL
+		};
+
+		execve(cgiBin.c_str(), argv, envp);
+		exit(1); // Se execve fallisce
+	} else {
+		// Padre: scrivi body su stdin del CGI, leggi output
+		close(inPipe[0]);
+		close(outPipe[1]);
+		write(inPipe[1], req.getBody().c_str(), req.getBody().size());
+		close(inPipe[1]);
+
+		std::string cgiOutput;
+		char buf[4096];
+		ssize_t n;
+		while ((n = read(outPipe[0], buf, sizeof(buf))) > 0) {
+			cgiOutput.append(buf, n);
+		}
+		close(outPipe[0]);
+		waitpid(pid, NULL, 0);
+
+		return cgiOutput;
 	}
-	return "<h1>" + defaultMsg + "</h1>";
 }
 
 static std::string generateAutoindex(const std::string& dirPath, const std::string& urlPath) {
@@ -62,6 +109,16 @@ static std::string generateAutoindex(const std::string& dirPath, const std::stri
 	return body.str();
 }
 
+static std::string getErrorBody(const ServerConfig& config, int code, const std::string& defaultMsg) {
+	std::string errorPagePath = config.getErrorPage(code);
+	if (!errorPagePath.empty()) {
+		std::ifstream errorFile(errorPagePath.c_str());
+		if (errorFile)
+			return std::string((std::istreambuf_iterator<char>(errorFile)), std::istreambuf_iterator<char>());
+	}
+	return "<h1>" + defaultMsg + "</h1>";
+}
+
 std::string Client::prepareResponse(const ServerConfig& config) {
 	Request req(_recvBuffer);
 	std::string method = req.getMethod();
@@ -75,31 +132,40 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 	std::string root = loc ? loc->getRoot() : "www";
 	std::string index = loc ? loc->getIndex() : "index.html";
 
-	// Costruisci il percorso reale del file richiesto
-	if (path == "/" || path.empty())
-		filePath = root + "/" + index;
-	else
-		filePath = root + path;
-
-	// Limite dimensione body
-	if (req.getBody().size() > config.getClientMaxBodySize()) {
-		status = "413 Payload Too Large";
-		body = getErrorBody(config, 413, "413 Payload Too Large");
+	// --- REDIRECT ---
+	if (loc && loc->getRedirectCode() && !loc->getRedirectUrl().empty()) {
+		std::ostringstream oss;
+		oss << "HTTP/1.1 " << loc->getRedirectCode() << " Redirect\r\n";
+		oss << "Location: " << loc->getRedirectUrl() << "\r\n";
+		oss << "Content-Length: 0\r\n";
+		oss << "Connection: close\r\n\r\n";
+		return oss.str();
 	}
-	// Metodo non permesso (esempio base, migliora con allow_methods per location)
-	else if (method != "GET" && method != "POST" && method != "DELETE") {
+
+	// --- ALLOW_METHODS ---
+	if (loc && !loc->isMethodAllowed(method)) {
 		status = "405 Method Not Allowed";
 		body = getErrorBody(config, 405, "405 Method Not Allowed");
 	}
+	// --- MAX BODY SIZE ---
+	else if (req.getBody().size() > config.getClientMaxBodySize()) {
+		status = "413 Payload Too Large";
+		body = getErrorBody(config, 413, "413 Payload Too Large");
+	}
+	// --- METODI ---
 	else if (method == "GET") {
+		// Costruisci il percorso reale del file richiesto
+		if (path == "/" || path.empty())
+			filePath = root + "/" + index;
+		else
+			filePath = root + path;
+
 		struct stat st;
 		if (stat(filePath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-			// È una directory
 			if (loc && loc->getAutoindex()) {
 				body = generateAutoindex(filePath, path);
 				status = "200 OK";
 			} else {
-				// Autoindex off: cerca index file o mostra forbidden
 				std::string indexPath = filePath + "/" + index;
 				std::ifstream indexFile(indexPath.c_str(), std::ios::binary);
 				if (indexFile) {
@@ -111,14 +177,42 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 				}
 			}
 		} else {
-			// Non è una directory: gestisci come file normale
-			std::ifstream file(filePath.c_str(), std::ios::binary);
-			if (file) {
-				body.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-				status = "200 OK";
+			// --- CGI CHECK ---
+			bool isCgi = false;
+			std::string ext;
+			if (loc) {
+				size_t dot = filePath.find_last_of('.');
+				if (dot != std::string::npos)
+					ext = filePath.substr(dot);
+				if (!ext.empty() && loc->getCgiMap().count(ext))
+					isCgi = true;
+			}
+			if (isCgi) {
+				std::string cgiBin = loc->getCgiMap().find(ext)->second;
+				std::string cgiOutput = executeCgi(filePath, cgiBin, req, root);
+				if (cgiOutput.empty()) {
+					status = "500 Internal Server Error";
+					body = getErrorBody(config, 500, "500 Internal Server Error");
+				}else {
+					// Separa header CGI dal body
+					size_t headerEnd = cgiOutput.find("\r\n\r\n");
+					if (headerEnd != std::string::npos) {
+						body = cgiOutput.substr(headerEnd + 4);
+						// Puoi anche parsare Content-Type, ecc. dagli header CGI se vuoi
+					} else {
+						body = cgiOutput;
+					}
+					status = "200 OK";
+				}
 			} else {
-				status = "404 Not Found";
-				body = getErrorBody(config, 404, "404 Not Found");
+				std::ifstream file(filePath.c_str(), std::ios::binary);
+				if (file) {
+					body.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+					status = "200 OK";
+				} else {
+					status = "404 Not Found";
+					body = getErrorBody(config, 404, "404 Not Found");
+				}
 			}
 		}
 	}
@@ -136,6 +230,11 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 		}
 	}
 	else if (method == "DELETE") {
+		if (path == "/" || path.empty())
+			filePath = root + "/" + index;
+		else
+			filePath = root + path;
+
 		struct stat st;
 		if (stat(filePath.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
 			if (remove(filePath.c_str()) == 0) {

@@ -11,6 +11,14 @@ const LocationConfig* ServerConfig::findLocation(const std::string& path) const 
 	return NULL;
 }
 
+const std::string& ServerConfig::getErrorPage(int code) const {
+	static const std::string empty;
+	std::map<int, std::string>::const_iterator it = _errorPages.find(code);
+	if (it != _errorPages.end())
+		return it->second;
+	return empty;
+}
+
 size_t ServerConfig::parse(const std::vector<std::string>& lines, size_t i) {
 	for (; i < lines.size(); ++i) {
 		const std::string& line = lines[i];

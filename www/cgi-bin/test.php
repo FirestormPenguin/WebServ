@@ -1,0 +1,1 @@
+echo '<?php echo "Hello from PHP CGI!"; ?>' > www/cgi-bin/test.php

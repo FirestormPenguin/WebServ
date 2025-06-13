@@ -9,6 +9,7 @@
 #include <set>
 #include <iostream>
 #include <string>
+#include <sys/wait.h>
 #include <cstdio>
 #include <vector>
 #include <map>

@@ -9,7 +9,7 @@
 #include <fstream>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "webserv.hpp"
+#include "WebServ.hpp"
 #include "HttpRequest.hpp"
 #include "ServerConfig.hpp"
 

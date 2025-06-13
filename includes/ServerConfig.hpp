@@ -19,7 +19,7 @@ public:
 	int getPort() const { return _port; }
 	const std::string& getServerName() const { return _serverName; }
 	const std::vector<LocationConfig>& getLocations() const { return _locations; }
-	const std::string& getErrorPage(int code) const { return _errorPages.at(code); }
+	const std::string& getErrorPage(int code) const;
 	const LocationConfig* findLocation(const std::string& path) const;
 	size_t parse(const std::vector<std::string>& lines, size_t i);
 	void setClientMaxBodySize(size_t size) { _clientMaxBodySize = size; }

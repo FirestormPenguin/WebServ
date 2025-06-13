@@ -29,6 +29,26 @@ size_t LocationConfig::parse(const std::vector<std::string>& lines, size_t i) {
 			iss >> keyword >> value;
 			setAutoindex(value == "on");
 		}
+		else if (line.find("return") == 0) {
+			std::istringstream iss(line);
+			std::string keyword, url;
+			int code;
+			iss >> keyword >> code >> url;
+			setRedirect(code, url);
+		}
+		else if (line.find("allow_methods") == 0) {
+			std::istringstream iss(line);
+			std::string keyword, method;
+			iss >> keyword;
+			while (iss >> method)
+				addAllowedMethod(method);
+		}
+		else if (line.find("cgi") == 0) {
+			std::istringstream iss(line);
+			std::string keyword, ext, path;
+			iss >> keyword >> ext >> path;
+			addCgi(ext, path);
+		}
 		else {
 			std::cerr << "Invalid directive in location block: " << line << std::endl;
 			exit(EXIT_FAILURE);
