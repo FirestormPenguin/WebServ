@@ -109,10 +109,11 @@ static std::string generateAutoindex(const std::string& dirPath, const std::stri
 	return body.str();
 }
 
-static std::string getErrorBody(const ServerConfig& config, int code, const std::string& defaultMsg) {
+static std::string getErrorBody(const ServerConfig& config, int code, const std::string& defaultMsg, const std::string& root) {
 	std::string errorPagePath = config.getErrorPage(code);
 	if (!errorPagePath.empty()) {
-		std::ifstream errorFile(errorPagePath.c_str());
+		std::string fullPath = root + errorPagePath; // aggiungi il root davanti!
+		std::ifstream errorFile(fullPath.c_str());
 		if (errorFile)
 			return std::string((std::istreambuf_iterator<char>(errorFile)), std::istreambuf_iterator<char>());
 	}
@@ -145,12 +146,12 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 	// --- ALLOW_METHODS ---
 	if (loc && !loc->isMethodAllowed(method)) {
 		status = "405 Method Not Allowed";
-		body = getErrorBody(config, 405, "405 Method Not Allowed");
+		body = getErrorBody(config, 405, "405 Method Not Allowed", root);
 	}
 	// --- MAX BODY SIZE ---
 	else if (req.getBody().size() > config.getClientMaxBodySize()) {
 		status = "413 Payload Too Large";
-		body = getErrorBody(config, 413, "413 Payload Too Large");
+		body = getErrorBody(config, 413, "413 Payload Too Large", root);
 	}
 	// --- METODI ---
 	else if (method == "GET") {
@@ -173,7 +174,7 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 					status = "200 OK";
 				} else {
 					status = "403 Forbidden";
-					body = getErrorBody(config, 403, "403 Forbidden");
+					body = getErrorBody(config, 403, "403 Forbidden", root);
 				}
 			}
 		} else {
@@ -192,7 +193,7 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 				std::string cgiOutput = executeCgi(filePath, cgiBin, req, root);
 				if (cgiOutput.empty()) {
 					status = "500 Internal Server Error";
-					body = getErrorBody(config, 500, "500 Internal Server Error");
+					body = getErrorBody(config, 500, "500 Internal Server Error", root);
 				}else {
 					// Separa header CGI dal body
 					size_t headerEnd = cgiOutput.find("\r\n\r\n");
@@ -211,7 +212,7 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 					status = "200 OK";
 				} else {
 					status = "404 Not Found";
-					body = getErrorBody(config, 404, "404 Not Found");
+					body = getErrorBody(config, 404, "404 Not Found", root);
 				}
 			}
 		}
@@ -226,7 +227,7 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 			status = "201 Created";
 		} else {
 			status = "500 Internal Server Error";
-			body = getErrorBody(config, 500, "500 Internal Server Error");
+			body = getErrorBody(config, 500, "500 Internal Server Error", root);
 		}
 	}
 	else if (method == "DELETE") {
@@ -242,11 +243,11 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 				status = "200 OK";
 			} else {
 				status = "403 Forbidden";
-				body = getErrorBody(config, 403, "403 Forbidden");
+				body = getErrorBody(config, 403, "403 Forbidden", root);
 			}
 		} else {
 			status = "404 Not Found";
-			body = getErrorBody(config, 404, "404 Not Found");
+			body = getErrorBody(config, 404, "404 Not Found", root);
 		}
 	}
 
