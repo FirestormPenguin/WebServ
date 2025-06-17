@@ -56,14 +56,21 @@ static std::string executeCgi(const std::string& scriptPath, const std::string& 
 		std::string contentType = "application/x-www-form-urlencoded";
 		std::string queryString = ""; // puoi estrarre dalla URL se serve
 
+		std::string scriptEnv = "SCRIPT_FILENAME=" + scriptFilename;
+		std::string methodEnv = "REQUEST_METHOD=" + requestMethod;
+		std::string lengthEnv = "CONTENT_LENGTH=" + contentLength;
+		std::string typeEnv   = "CONTENT_TYPE=" + contentType;
+		std::string queryEnv  = "QUERY_STRING=" + queryString;
+
 		char* envp[] = {
-			const_cast<char*>(("SCRIPT_FILENAME=" + scriptFilename).c_str()),
-			const_cast<char*>(("REQUEST_METHOD=" + requestMethod).c_str()),
-			const_cast<char*>(("CONTENT_LENGTH=" + contentLength).c_str()),
-			const_cast<char*>(("CONTENT_TYPE=" + contentType).c_str()),
-			const_cast<char*>(("QUERY_STRING=" + queryString).c_str()),
+			const_cast<char*>(scriptEnv.c_str()),
+			const_cast<char*>(methodEnv.c_str()),
+			const_cast<char*>(lengthEnv.c_str()),
+			const_cast<char*>(typeEnv.c_str()),
+			const_cast<char*>(queryEnv.c_str()),
 			NULL
 		};
+
 
 		execve(cgiBin.c_str(), argv, envp);
 		exit(1); // Se execve fallisce

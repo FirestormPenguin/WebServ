@@ -2,7 +2,7 @@
 #define LOCATIONCONFIG_HPP
 
 #include <string>
-#include "webserv.hpp"
+#include "WebServ.hpp"
 
 class LocationConfig {
 private:
