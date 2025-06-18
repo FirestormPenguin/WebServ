@@ -55,6 +55,7 @@ static std::string executeCgi(const std::string& scriptPath, const std::string& 
 		std::string contentLength = oss.str();
 		std::string contentType = "application/x-www-form-urlencoded";
 		std::string queryString = ""; // puoi estrarre dalla URL se serve
+		std::string redirectEnv = "REDIRECT_STATUS=1";
 
 		std::string scriptEnv = "SCRIPT_FILENAME=" + scriptFilename;
 		std::string methodEnv = "REQUEST_METHOD=" + requestMethod;
@@ -68,6 +69,7 @@ static std::string executeCgi(const std::string& scriptPath, const std::string& 
 			const_cast<char*>(lengthEnv.c_str()),
 			const_cast<char*>(typeEnv.c_str()),
 			const_cast<char*>(queryEnv.c_str()),
+			const_cast<char*>(redirectEnv.c_str()),
 			NULL
 		};
 
