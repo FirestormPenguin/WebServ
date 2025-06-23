@@ -17,6 +17,7 @@ public:
 	Server(const ServerConfig& config);
 	void run();
 	int getListenFd() const { return _serverFd; }
+	int getFd() const { return _serverFd; }
 	const ServerConfig& getConfig() const { return _config; }
 };
 

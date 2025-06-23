@@ -4,13 +4,15 @@ Server::Server(const ServerConfig& config) : _config(config) {
 	_serverFd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_serverFd < 0) {
 		perror("socket");
-		 return;
+		return;
 	}
 
 	int opt = 1;
 	if (setsockopt(_serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
 		perror("setsockopt");
-		 return;
+		close(_serverFd);
+		_serverFd = -1;
+		return;
 	}
 
 	struct sockaddr_in addr;
@@ -21,12 +23,16 @@ Server::Server(const ServerConfig& config) : _config(config) {
 
 	if (bind(_serverFd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		perror("bind");
-		 return;
+		close(_serverFd);
+		_serverFd = -1;
+		return;
 	}
 
 	if (listen(_serverFd, SOMAXCONN) < 0) {
 		perror("listen");
-		 return;
+		close(_serverFd);
+		_serverFd = -1;
+		return;
 	}
 }
 

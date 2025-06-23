@@ -1,6 +1,7 @@
 #include "Server.hpp"
 #include "ConfigFile.hpp"
 #include "Config.hpp"
+#include <set>
 
 int main(int argc, char** argv) {
 	std::string configPath = "webserv.conf";
@@ -15,12 +16,18 @@ int main(int argc, char** argv) {
 	std::vector<Server*> serverList;
 	std::map<int, Server*> fdToServer; // Map from listen fd to Server*
 
-	// Crea tutti i server e raccogli i loro socket di ascolto
+	// Crea tutti i server e raccogli solo quelli con fd valido
 	for (size_t i = 0; i < servers.size(); ++i) {
 		Server* s = new Server(servers[i]);
-		serverList.push_back(s);
-		fdToServer[s->getListenFd()] = s;
-		std::cout << "Listening on port " << servers[i].getPort() << std::endl;
+		int fd = s->getListenFd();
+		if (fd >= 0) {
+			serverList.push_back(s);
+			fdToServer[fd] = s;
+			std::cout << "Listening on port " << servers[i].getPort() << std::endl;
+		} else {
+			delete s;
+			std::cerr << "Server on port " << servers[i].getPort() << " not started due to socket/bind/listen error." << std::endl;
+		}
 	}
 
 	std::map<int, Client*> clients;
@@ -32,11 +39,13 @@ int main(int argc, char** argv) {
 
 		int maxFd = 0;
 
-		// Aggiungi tutti i socket di ascolto dei server
+		// Aggiungi solo i socket di ascolto validi
 		for (size_t i = 0; i < serverList.size(); ++i) {
 			int fd = serverList[i]->getListenFd();
-			FD_SET(fd, &read_fds);
-			if (fd > maxFd) maxFd = fd;
+			if (fd >= 0) {
+				FD_SET(fd, &read_fds);
+				if (fd > maxFd) maxFd = fd;
+			}
 		}
 
 		// Aggiungi tutti i socket dei client
@@ -50,10 +59,10 @@ int main(int argc, char** argv) {
 			break;
 		}
 
-		// Accetta nuove connessioni su qualsiasi server
+		// Accetta nuove connessioni solo su fd validi
 		for (size_t i = 0; i < serverList.size(); ++i) {
 			int listenFd = serverList[i]->getListenFd();
-			if (FD_ISSET(listenFd, &read_fds)) {
+			if (listenFd >= 0 && FD_ISSET(listenFd, &read_fds)) {
 				int clientFd = accept(listenFd, NULL, NULL);
 				if (clientFd < 0) {
 					perror("accept");
