@@ -197,8 +197,6 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 		oss << "Connection: close\r\n\r\n";
 		return oss.str();
 	}
-
-	std::cout << "Body size: " << req.getBody().size() << ", max allowed: " << config.getClientMaxBodySize() << std::endl;
 	
 	// --- ALLOW_METHODS ---
 	if (loc && !loc->isMethodAllowed(method)) {
