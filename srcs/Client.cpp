@@ -44,17 +44,15 @@ static std::string executeCgi(const std::string& scriptPath, const std::string& 
 		close(inPipe[1]);
 		close(outPipe[0]);
 
-		// Prepara argv
 		char* argv[] = {const_cast<char*>(cgiBin.c_str()), const_cast<char*>(scriptPath.c_str()), NULL};
 
-		// Prepara envp (solo le variabili base, puoi aggiungerne altre)
 		std::string scriptFilename = scriptPath;
 		std::string requestMethod = req.getMethod();
 		std::ostringstream oss;
 		oss << req.getBody().size();
 		std::string contentLength = oss.str();
 		std::string contentType = "application/x-www-form-urlencoded";
-		std::string queryString = ""; // puoi estrarre dalla URL se serve
+		std::string queryString = "";
 		std::string redirectEnv = "REDIRECT_STATUS=1";
 
 		std::string scriptEnv = "SCRIPT_FILENAME=" + scriptFilename;
@@ -78,7 +76,7 @@ static std::string executeCgi(const std::string& scriptPath, const std::string& 
 		write(STDOUT_FILENO, errMsg, strlen(errMsg));
 		while (1) {}
 	} else {
-		// Padre: scrivi body su stdin del CGI, leggi output
+		// Padre: scrivi body su stdin del CGI, leggi output con timeout
 		close(inPipe[0]);
 		close(outPipe[1]);
 		write(inPipe[1], req.getBody().c_str(), req.getBody().size());
@@ -87,13 +85,31 @@ static std::string executeCgi(const std::string& scriptPath, const std::string& 
 		std::string cgiOutput;
 		char buf[4096];
 		ssize_t n;
-		while ((n = read(outPipe[0], buf, sizeof(buf))) > 0) {
-			cgiOutput.append(buf, n);
-		}
-		close(outPipe[0]);
-		waitpid(pid, NULL, 0);
+		int status = 0;
+		int timeout_sec = 5; // Timeout di 5 secondi
 
-		return cgiOutput;
+		fd_set readfds;
+		struct timeval tv;
+		FD_ZERO(&readfds);
+		FD_SET(outPipe[0], &readfds);
+		tv.tv_sec = timeout_sec;
+		tv.tv_usec = 0;
+
+		int sel = select(outPipe[0] + 1, &readfds, NULL, NULL, &tv);
+		if (sel > 0 && FD_ISSET(outPipe[0], &readfds)) {
+			while ((n = read(outPipe[0], buf, sizeof(buf))) > 0) {
+				cgiOutput.append(buf, n);
+			}
+			close(outPipe[0]);
+			waitpid(pid, &status, 0);
+			return cgiOutput;
+		} else {
+			// Timeout scaduto: termina il CGI e restituisci errore 500
+			kill(pid, SIGKILL);
+			waitpid(pid, &status, 0);
+			close(outPipe[0]);
+			return "Status: 500 Internal Server Error\r\n\r\nCGI timeout.\n";
+		}
 	}
 }
 
