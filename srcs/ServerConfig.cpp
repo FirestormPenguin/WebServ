@@ -66,10 +66,10 @@ size_t ServerConfig::parse(const std::vector<std::string>& lines, size_t i) {
 		}
 		else {
 			std::cerr << "Invalid directive in server block: " << line << std::endl;
-			exit(EXIT_FAILURE);
+			return lines.size();
 		}
 	}
 
 	std::cerr << "Missing closing '}' for server block" << std::endl;
-	exit(EXIT_FAILURE);
+	return lines.size();
 }

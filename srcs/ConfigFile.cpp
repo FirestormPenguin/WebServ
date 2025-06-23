@@ -9,7 +9,7 @@ void ConfigFile::readFile() {
 	std::ifstream file(_path.c_str());
 	if (!file.is_open()) {
 		std::cerr << "Error opening config file: " << _path << std::endl;
-		exit(EXIT_FAILURE);
+		return;
 	}
 
 	std::ostringstream ss;

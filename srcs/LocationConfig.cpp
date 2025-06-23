@@ -51,10 +51,10 @@ size_t LocationConfig::parse(const std::vector<std::string>& lines, size_t i) {
 		}
 		else {
 			std::cerr << "Invalid directive in location block: " << line << std::endl;
-			exit(EXIT_FAILURE);
+			return lines.size();
 		}
 	}
 
 	std::cerr << "Missing closing '}' for location block" << std::endl;
-	exit(EXIT_FAILURE);
+	return lines.size();
 }

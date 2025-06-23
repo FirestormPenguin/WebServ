@@ -21,7 +21,7 @@ void Config::parse(const std::vector<std::string>& lines) {
 			_servers.push_back(server);
 		} else {
 			std::cerr << "Invalid config: expected 'server {' but got: " << lines[i] << std::endl;
-			exit(EXIT_FAILURE);
+			return;
 		}
 	}
 }

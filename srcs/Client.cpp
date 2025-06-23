@@ -73,9 +73,11 @@ static std::string executeCgi(const std::string& scriptPath, const std::string& 
 			NULL
 		};
 
-
 		execve(cgiBin.c_str(), argv, envp);
-		exit(1); // Se execve fallisce
+		// Se execve fallisce, scrivi un messaggio di errore su stdout e termina il processo con un ciclo infinito
+		const char* errMsg = "Status: 500 Internal Server Error\r\n\r\nCGI execution failed.\n";
+		write(STDOUT_FILENO, errMsg, strlen(errMsg));
+		while (1) {}
 	} else {
 		// Padre: scrivi body su stdin del CGI, leggi output
 		close(inPipe[0]);
