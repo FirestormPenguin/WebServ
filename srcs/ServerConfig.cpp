@@ -33,7 +33,7 @@ size_t ServerConfig::parse(const std::vector<std::string>& lines, size_t i) {
 		const std::string& line = lines[i];
 
 		if (line == "}") {
-			return i + 1; // Fine del blocco server
+			return i + 1;
 		}
 		else if (line.find("client_max_body_size") == 0) {
 			std::istringstream iss(line);

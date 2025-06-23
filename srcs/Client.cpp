@@ -13,7 +13,24 @@ void Client::appendToBuffer(const std::string& data) {
 }
 
 bool Client::hasCompleteRequest() const {
-	return _recvBuffer.find("\r\n\r\n") != std::string::npos;
+	size_t header_end = _recvBuffer.find("\r\n\r\n");
+	if (header_end == std::string::npos)
+		return false;
+
+	// Cerca Content-Length
+	size_t cl_pos = _recvBuffer.find("Content-Length:");
+	if (cl_pos != std::string::npos && cl_pos < header_end) {
+		size_t value_start = cl_pos + 15;
+		while (value_start < _recvBuffer.size() && (_recvBuffer[value_start] == ' ' || _recvBuffer[value_start] == '\t'))
+			++value_start;
+		size_t value_end = _recvBuffer.find("\r\n", value_start);
+		std::string cl_str = _recvBuffer.substr(value_start, value_end - value_start);
+		size_t content_length = atoi(cl_str.c_str());
+		size_t total_size = header_end + 4 + content_length;
+		return _recvBuffer.size() >= total_size;
+	}
+	// Nessun Content-Length: solo header
+	return true;
 }
 
 void Client::parseRequest() {
@@ -181,6 +198,8 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 		return oss.str();
 	}
 
+	std::cout << "Body size: " << req.getBody().size() << ", max allowed: " << config.getClientMaxBodySize() << std::endl;
+	
 	// --- ALLOW_METHODS ---
 	if (loc && !loc->isMethodAllowed(method)) {
 		status = "405 Method Not Allowed";
@@ -193,7 +212,6 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 	}
 	// --- METODI ---
 	else if (method == "GET") {
-	// Costruisci il percorso reale del file richiesto
 		if (path == "/" || path.empty())
 			filePath = root + "/" + index;
 		else
