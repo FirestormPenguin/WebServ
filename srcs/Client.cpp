@@ -142,6 +142,18 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 	std::string root = loc ? loc->getRoot() : "www";
 	std::string index = loc ? loc->getIndex() : "index.html";
 
+	if (path == "/" || path.empty())
+		filePath = root + "/" + index;
+	else
+		filePath = root + path;
+
+	struct stat st;
+	if (stat(filePath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+		if (filePath[filePath.size()-1] != '/')
+			filePath += "/";
+		filePath += index;
+	}
+
 	// --- REDIRECT ---
 	if (loc && loc->getRedirectCode() && !loc->getRedirectUrl().empty()) {
 		std::ostringstream oss;
@@ -164,7 +176,7 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 	}
 	// --- METODI ---
 	else if (method == "GET") {
-		// Costruisci il percorso reale del file richiesto
+	// Costruisci il percorso reale del file richiesto
 		if (path == "/" || path.empty())
 			filePath = root + "/" + index;
 		else
@@ -172,19 +184,22 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 
 		struct stat st;
 		if (stat(filePath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-			if (loc && loc->getAutoindex()) {
+			// Se è una directory, cerca l'index file
+			std::string indexPath = filePath;
+			if (indexPath[indexPath.size()-1] != '/')
+				indexPath += "/";
+			indexPath += index;
+
+			std::ifstream indexFile(indexPath.c_str(), std::ios::binary);
+			if (indexFile) {
+				body.assign((std::istreambuf_iterator<char>(indexFile)), std::istreambuf_iterator<char>());
+				status = "200 OK";
+			} else if (loc && loc->getAutoindex()) {
 				body = generateAutoindex(filePath, path);
 				status = "200 OK";
 			} else {
-				std::string indexPath = filePath + "/" + index;
-				std::ifstream indexFile(indexPath.c_str(), std::ios::binary);
-				if (indexFile) {
-					body.assign((std::istreambuf_iterator<char>(indexFile)), std::istreambuf_iterator<char>());
-					status = "200 OK";
-				} else {
-					status = "403 Forbidden";
-					body = getErrorBody(config, 403, "403 Forbidden", root);
-				}
+				status = "403 Forbidden";
+				body = getErrorBody(config, 403, "403 Forbidden", root);
 			}
 		} else {
 			// --- CGI CHECK ---
@@ -203,12 +218,11 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 				if (cgiOutput.empty()) {
 					status = "500 Internal Server Error";
 					body = getErrorBody(config, 500, "500 Internal Server Error", root);
-				}else {
+				} else {
 					// Separa header CGI dal body
 					size_t headerEnd = cgiOutput.find("\r\n\r\n");
 					if (headerEnd != std::string::npos) {
 						body = cgiOutput.substr(headerEnd + 4);
-						// Puoi anche parsare Content-Type, ecc. dagli header CGI se vuoi
 					} else {
 						body = cgiOutput;
 					}
