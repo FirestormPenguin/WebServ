@@ -2,7 +2,7 @@
 #include <sstream>
 #include <iostream>
 
-LocationConfig::LocationConfig() {}
+LocationConfig::LocationConfig() { _redirectCode = 0; _redirectUrl = ""; }
 
 size_t LocationConfig::parse(const std::vector<std::string>& lines, size_t i) {
 	std::istringstream iss(lines[i]);

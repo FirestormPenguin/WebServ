@@ -5,19 +5,21 @@
 ServerConfig::ServerConfig() : _port(80) {}
 
 const LocationConfig* ServerConfig::findLocation(const std::string& path) const {
-	const LocationConfig* bestMatch = NULL;
+	const LocationConfig* best = NULL;
 	size_t bestLen = 0;
-
 	for (size_t i = 0; i < _locations.size(); ++i) {
 		const std::string& locPath = _locations[i].getPath();
 		if (path.compare(0, locPath.size(), locPath) == 0) {
-			if (locPath.size() > bestLen) {
-				bestLen = locPath.size();
-				bestMatch = &_locations[i];
+			// Assicura che sia un match esatto o che il path continui con uno slash
+			if (path.size() == locPath.size() || path[locPath.size()] == '/') {
+				if (locPath.size() > bestLen) {
+					best = &_locations[i];
+					bestLen = locPath.size();
+				}
 			}
 		}
 	}
-	return bestMatch;
+	return best;
 }
 
 const std::string& ServerConfig::getErrorPage(int code) const {
