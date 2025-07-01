@@ -9,13 +9,16 @@ const LocationConfig* ServerConfig::findLocation(const std::string& path) const 
 	size_t bestLen = 0;
 	for (size_t i = 0; i < _locations.size(); ++i) {
 		const std::string& locPath = _locations[i].getPath();
-		if (path.compare(0, locPath.size(), locPath) == 0) {
-			// Assicura che sia un match esatto o che il path continui con uno slash
-			if (path.size() == locPath.size() || path[locPath.size()] == '/') {
-				if (locPath.size() > bestLen) {
-					best = &_locations[i];
-					bestLen = locPath.size();
-				}
+		if (locPath == "/") {
+			if (bestLen == 0) {
+				best = &_locations[i];
+				bestLen = 1;
+			}
+		} else if (path.compare(0, locPath.size(), locPath) == 0 &&
+				   (path.size() == locPath.size() || path[locPath.size()] == '/')) {
+			if (locPath.size() > bestLen) {
+				best = &_locations[i];
+				bestLen = locPath.size();
 			}
 		}
 	}

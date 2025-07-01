@@ -176,17 +176,11 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 	std::string root = loc ? loc->getRoot() : "www";
 	std::string index = loc ? loc->getIndex() : "index.html";
 
+	// Costruisci il path reale del file o directory richiesto
 	if (path == "/" || path.empty())
-		filePath = root + "/" + index;
+		filePath = root + "/";
 	else
 		filePath = root + path;
-
-	struct stat st;
-	if (stat(filePath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-		if (filePath[filePath.size()-1] != '/')
-			filePath += "/";
-		filePath += index;
-	}
 
 	// --- REDIRECT ---
 	if (loc && loc->getRedirectCode() && !loc->getRedirectUrl().empty()) {
@@ -197,7 +191,7 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 		oss << "Connection: close\r\n\r\n";
 		return oss.str();
 	}
-	
+
 	// --- ALLOW_METHODS ---
 	if (loc && !loc->isMethodAllowed(method)) {
 		status = "405 Method Not Allowed";
@@ -210,25 +204,20 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 	}
 	// --- METODI ---
 	else if (method == "GET") {
-		if (path == "/" || path.empty())
-			filePath = root + "/" + index;
-		else
-			filePath = root + path;
-
 		struct stat st;
 		if (stat(filePath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-			// Se è una directory, cerca l'index file
-			std::string indexPath = filePath;
-			if (indexPath[indexPath.size()-1] != '/')
-				indexPath += "/";
-			indexPath += index;
+			// Directory: cerca index file
+			std::string dirPath = filePath;
+			if (dirPath[dirPath.size()-1] != '/')
+				dirPath += "/";
+			std::string indexPath = dirPath + index;
 
 			std::ifstream indexFile(indexPath.c_str(), std::ios::binary);
 			if (indexFile) {
 				body.assign((std::istreambuf_iterator<char>(indexFile)), std::istreambuf_iterator<char>());
 				status = "200 OK";
 			} else if (loc && loc->getAutoindex()) {
-				body = generateAutoindex(filePath, path);
+				body = generateAutoindex(dirPath, path);
 				status = "200 OK";
 			} else {
 				status = "403 Forbidden";
