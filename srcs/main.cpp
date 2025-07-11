@@ -134,7 +134,6 @@ int main(int argc, char** argv) {
 							break;
 						}
 					}
-					std::cout << "Processing request on port: " << port << std::endl;
 					std::string hostHeader = extractHost(client->getRecvBuffer());
 					const std::vector<const ServerConfig*>& candidates = serversByPort[port];
 					const ServerConfig* selected = NULL;

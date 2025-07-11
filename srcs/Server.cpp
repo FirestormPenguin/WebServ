@@ -7,6 +7,13 @@ Server::Server(const ServerConfig& config) : _config(config) {
 		return;
 	}
 
+	if (fcntl(_serverFd, F_SETFL, O_NONBLOCK) < 0) {
+		perror("fcntl O_NONBLOCK");
+		close(_serverFd);
+		_serverFd = -1;
+		return;
+	}
+
 	int opt = 1;
 	if (setsockopt(_serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
 		perror("setsockopt");
@@ -62,6 +69,11 @@ void Server::run() {
 			int clientFd = accept(_serverFd, NULL, NULL);
 			if (clientFd < 0) {
 				perror("accept");
+				continue;
+			}
+			if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0) {
+				perror("fcntl O_NONBLOCK (client)");
+				close(clientFd);
 				continue;
 			}
 			_clients[clientFd] = new Client(clientFd);
