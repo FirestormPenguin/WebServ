@@ -10,10 +10,8 @@ curl --resolve ciao.com:8081:127.0.0.1 http://ciao.com:8081 | head -n 20
 
 ciao.com non dovrebbe funzionare solo sulla porta 8081 ?
 
-
-
 Virtual host
 
-
+testare curl e browser, se browser non funziona ma curl si, boh
 
 Rivedere funzioni consentite, e c++:98
