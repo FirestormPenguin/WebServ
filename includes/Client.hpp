@@ -29,6 +29,7 @@ public:
 	~Client();
 
 	int getFd() const { return _fd; }
+	const std::string& getRecvBuffer() const { return _recvBuffer; }
 	void appendToBuffer(const std::string& data);
 	bool hasCompleteRequest() const;
 	void parseRequest();

@@ -2,6 +2,28 @@
 #include "ConfigFile.hpp"
 #include "Config.hpp"
 #include <set>
+#include <map>
+#include <sstream>
+#include <iostream>
+
+std::string extractHost(const std::string& rawRequest) {
+	std::istringstream iss(rawRequest);
+	std::string line;
+	while (std::getline(iss, line)) {
+		if (line.find("Host:") == 0) {
+			std::string host = line.substr(5);
+			size_t pos = host.find(':');
+			if (pos != std::string::npos)
+				host = host.substr(0, pos);
+			while (!host.empty() && (host[0] == ' ' || host[0] == '\t'))
+				host.erase(0, 1);
+			while (!host.empty() && (host[host.size()-1] == '\r' || host[host.size()-1] == ' ' || host[host.size()-1] == '\t'))
+				host.erase(host.size()-1, 1);
+			return host;
+		}
+	}
+	return "";
+}
 
 int main(int argc, char** argv) {
 	std::string configPath = "webserv.conf";
@@ -15,6 +37,12 @@ int main(int argc, char** argv) {
 	const std::vector<ServerConfig>& servers = config.getServers();
 	std::vector<Server*> serverList;
 	std::map<int, Server*> fdToServer; // Map from listen fd to Server*
+
+	// Raggruppa i server per porta per il virtual hosting
+	std::map<int, std::vector<const ServerConfig*> > serversByPort;
+	for (size_t i = 0; i < servers.size(); ++i) {
+		serversByPort[servers[i].getPort()].push_back(&servers[i]);
+	}
 
 	// Crea tutti i server e raccogli solo quelli con fd valido
 	for (size_t i = 0; i < servers.size(); ++i) {
@@ -97,8 +125,34 @@ int main(int argc, char** argv) {
 				if (client->hasCompleteRequest()) {
 					client->parseRequest();
 					int listenFd = clientToServerFd[clientFd];
-					Server* server = fdToServer[listenFd];
-					std::string response = client->prepareResponse(server->getConfig());
+
+					// Virtual host selection strict
+					int port = 0;
+					for (size_t i = 0; i < serverList.size(); ++i) {
+						if (serverList[i]->getListenFd() == listenFd) {
+							port = serverList[i]->getConfig().getPort();
+							break;
+						}
+					}
+					std::cout << "Processing request on port: " << port << std::endl;
+					std::string hostHeader = extractHost(client->getRecvBuffer());
+					const std::vector<const ServerConfig*>& candidates = serversByPort[port];
+					const ServerConfig* selected = NULL;
+					for (size_t i = 0; i < candidates.size(); ++i) {
+						if (candidates[i]->getServerName() == hostHeader) {
+							selected = candidates[i];
+							break;
+						}
+					}
+					if (!selected) {
+						std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+						send(clientFd, response.c_str(), response.size(), 0);
+						close(clientFd);
+						toRemove.push_back(clientFd);
+						continue;
+					}
+
+					std::string response = client->prepareResponse(*selected);
 					send(clientFd, response.c_str(), response.size(), 0);
 
 					if (!client->isKeepAlive()) {
