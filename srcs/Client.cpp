@@ -174,7 +174,12 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 
 	const LocationConfig* loc = config.findLocation(path);
 	std::string root = loc ? loc->getRoot() : "www";
-	std::string index = loc ? loc->getIndex() : "index.html";
+	std::string index = "";
+	if (loc && !loc->getIndex().empty()) {
+		index = loc->getIndex();
+	} else {
+		index = "index.html"; // default fallback
+	}
 
 	// Costruisci il path reale del file o directory richiesto
 	if (path == "/" || path.empty())
@@ -210,18 +215,36 @@ std::string Client::prepareResponse(const ServerConfig& config) {
 			std::string dirPath = filePath;
 			if (dirPath[dirPath.size()-1] != '/')
 				dirPath += "/";
-			std::string indexPath = dirPath + index;
-
-			std::ifstream indexFile(indexPath.c_str(), std::ios::binary);
-			if (indexFile) {
-				body.assign((std::istreambuf_iterator<char>(indexFile)), std::istreambuf_iterator<char>());
-				status = "200 OK";
-			} else if (loc && loc->getAutoindex()) {
-				body = generateAutoindex(dirPath, path);
-				status = "200 OK";
+			
+			// Se c'è una regola index specifica nella location, prova a cercarla
+			bool hasIndexRule = (loc && !loc->getIndex().empty());
+			
+			if (hasIndexRule) {
+				// C'è una regola index esplicita, prova a cercare il file
+				std::string indexPath = dirPath + loc->getIndex();
+				std::ifstream indexFile(indexPath.c_str(), std::ios::binary);
+				if (indexFile.is_open()) {
+					body.assign((std::istreambuf_iterator<char>(indexFile)), std::istreambuf_iterator<char>());
+					status = "200 OK";
+				} else {
+					// Index file specificato ma non trovato
+					if (loc && loc->getAutoindex()) {
+						body = generateAutoindex(dirPath, path);
+						status = "200 OK";
+					} else {
+						status = "403 Forbidden";
+						body = getErrorBody(config, 403, "403 Forbidden", root);
+					}
+				}
 			} else {
-				status = "403 Forbidden";
-				body = getErrorBody(config, 403, "403 Forbidden", root);
+				// Nessuna regola index esplicita, usa autoindex se abilitato
+				if (loc && loc->getAutoindex()) {
+					body = generateAutoindex(dirPath, path);
+					status = "200 OK";
+				} else {
+					status = "403 Forbidden";
+					body = getErrorBody(config, 403, "403 Forbidden", root);
+				}
 			}
 		} else {
 			// --- CGI CHECK ---
