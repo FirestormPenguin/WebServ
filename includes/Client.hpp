@@ -19,6 +19,7 @@ private:
 	std::string _recvBuffer;
 	bool _requestComplete;
 	bool _keepAlive;
+	bool _sent100Continue;
 
 	std::string _method;
 	std::string _path;
@@ -36,6 +37,9 @@ public:
 	std::string prepareResponse(const ServerConfig& config);
 	bool isKeepAlive() const;
 	void reset();
+	
+	bool hasSent100Continue() const { return _sent100Continue; }
+	void setSent100Continue(bool sent) { _sent100Continue = sent; }
 };
 
 #endif

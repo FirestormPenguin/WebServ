@@ -35,6 +35,15 @@ int main(int argc, char** argv) {
 	config.parse(confFile.getLines());
 
 	const std::vector<ServerConfig>& servers = config.getServers();
+
+	// Validazione dei server prima di avviarli
+    for (size_t i = 0; i < servers.size(); ++i) {
+        if (!servers[i].isValid()) {
+            std::cerr << "Server configuration invalid. Exiting." << std::endl;
+            return 1;
+        }
+    }
+
 	std::vector<Server*> serverList;
 	std::map<int, Server*> fdToServer; // Map from listen fd to Server*
 
@@ -55,6 +64,7 @@ int main(int argc, char** argv) {
 		} else {
 			delete s;
 			std::cerr << "Server on port " << servers[i].getPort() << " not started due to socket/bind/listen error." << std::endl;
+			return 1;
 		}
 	}
 
@@ -109,7 +119,7 @@ int main(int argc, char** argv) {
 			Client* client = it->second;
 
 			if (FD_ISSET(clientFd, &read_fds)) {
-				char buffer[4096];
+				char buffer[65536];  // Buffer più grande per file grandi
 				ssize_t bytesRead = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
 
 				if (bytesRead <= 0) {
@@ -119,8 +129,46 @@ int main(int argc, char** argv) {
 					continue;
 				}
 
-				buffer[bytesRead] = '\0';
-				client->appendToBuffer(buffer);
+				// Per dati binari, usa std::string con lunghezza esplicita
+				std::string received_data(buffer, bytesRead);
+				client->appendToBuffer(received_data);
+
+				// Controlla se il client aspetta "100 Continue"
+				std::string recvBuffer = client->getRecvBuffer();
+				if (recvBuffer.find("Expect: 100-continue") != std::string::npos && 
+					!client->hasSent100Continue()) {
+					std::string continueResponse = "HTTP/1.1 100 Continue\r\n\r\n";
+					send(clientFd, continueResponse.c_str(), continueResponse.size(), 0);
+					client->setSent100Continue(true);
+				} 
+				// CASO SPECIALE: Multipart senza "Expect: 100-continue" (Chrome moderno)
+				else if (recvBuffer.find("multipart/form-data") != std::string::npos && 
+						 recvBuffer.find("\r\n\r\n") != std::string::npos &&
+						 !client->hasSent100Continue()) {
+					std::string continueResponse = "HTTP/1.1 100 Continue\r\n\r\n";
+					send(clientFd, continueResponse.c_str(), continueResponse.size(), 0);
+					client->setSent100Continue(true);
+				}
+
+				// Dopo aver inviato 100 Continue, prova a leggere immediatamente più dati
+				if (recvBuffer.find("multipart/form-data") != std::string::npos && client->hasSent100Continue()) {
+					fd_set immediate_read;
+					struct timeval immediate_timeout;
+					FD_ZERO(&immediate_read);
+					FD_SET(clientFd, &immediate_read);
+					immediate_timeout.tv_sec = 0;
+					immediate_timeout.tv_usec = 100000; // 100ms timeout
+					
+					int immediate_ready = select(clientFd + 1, &immediate_read, NULL, NULL, &immediate_timeout);
+					if (immediate_ready > 0 && FD_ISSET(clientFd, &immediate_read)) {
+						char immediate_buffer[65536];
+						ssize_t immediate_bytes = recv(clientFd, immediate_buffer, sizeof(immediate_buffer) - 1, MSG_DONTWAIT);
+						if (immediate_bytes > 0) {
+							std::string immediate_data(immediate_buffer, immediate_bytes);
+							client->appendToBuffer(immediate_data);
+						}
+					}
+				}
 
 				if (client->hasCompleteRequest()) {
 					client->parseRequest();
@@ -152,14 +200,21 @@ int main(int argc, char** argv) {
 					}
 
 					std::string response = client->prepareResponse(*selected);
-					send(clientFd, response.c_str(), response.size(), 0);
+					
+					// Se la risposta è vuota, significa che stiamo aspettando più dati
+					// (probabilmente dopo aver inviato "100 Continue")
+					if (!response.empty()) {
+						send(clientFd, response.c_str(), response.size(), 0);
 
-					if (!client->isKeepAlive()) {
-						std::cout << "Closing connection: " << clientFd << std::endl;
-						close(clientFd);
-						toRemove.push_back(clientFd);
+						if (!client->isKeepAlive()) {
+							std::cout << "Closing connection: " << clientFd << std::endl;
+							close(clientFd);
+							toRemove.push_back(clientFd);
+						} else {
+							client->reset();
+						}
 					} else {
-						client->reset();
+						std::cerr << "Empty response - waiting for more data from client " << clientFd << std::endl;
 					}
 				}
 			}

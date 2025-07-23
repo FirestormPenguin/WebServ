@@ -1,11 +1,35 @@
 #include "HttpRequest.hpp"
 
 Request::Request(const std::string &rawRequest) {
-	std::istringstream stream(rawRequest);
-
-	parseRequestLine(stream);
-	parseHeaders(stream);
-	parseBody(stream);
+	// Trova la fine degli header
+	size_t headerEnd = rawRequest.find("\r\n\r\n");
+	if (headerEnd == std::string::npos) {
+		// Fallback per testare se mancano \r
+		headerEnd = rawRequest.find("\n\n");
+		if (headerEnd != std::string::npos) {
+			headerEnd += 2;
+		}
+	} else {
+		headerEnd += 4;
+	}
+	
+	if (headerEnd != std::string::npos) {
+		// Parsing degli header usando istringstream (solo per la parte header)
+		std::string headersPart = rawRequest.substr(0, headerEnd - 4); // Rimuovi \r\n\r\n
+		std::istringstream stream(headersPart);
+		parseRequestLine(stream);
+		parseHeaders(stream);
+		
+		// Body: prendi tutto dopo gli header usando substr (mantiene dati binari)
+		if (headerEnd < rawRequest.size()) {
+			body = rawRequest.substr(headerEnd);
+		}
+	} else {
+		// Nessun body, solo header
+		std::istringstream stream(rawRequest);
+		parseRequestLine(stream);
+		parseHeaders(stream);
+	}
 }
 
 void Request::parseRequestLine(std::istringstream &stream) {
@@ -35,12 +59,6 @@ void Request::parseHeaders(std::istringstream &stream) {
 			headers[key] = value;
 		}
 	}
-}
-
-void Request::parseBody(std::istringstream &stream) {
-	std::ostringstream bodyStream;
-	bodyStream << stream.rdbuf();
-	body = bodyStream.str();
 }
 
 const std::string &Request::getMethod() const {

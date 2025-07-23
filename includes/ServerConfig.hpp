@@ -25,7 +25,7 @@ public:
 	void setClientMaxBodySize(size_t size) { _clientMaxBodySize = size; }
 	size_t getClientMaxBodySize() const { return _clientMaxBodySize; }
 	void setErrorPage(int code, const std::string& path) { _errorPages[code] = path; }
-	
+	bool isValid() const;
 	
 };
 

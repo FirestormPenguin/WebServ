@@ -4,7 +4,7 @@ import time
 
 # Parametri
 URL = "http://localhost:8080"
-NUM_UTENTI = 10
+NUM_UTENTI = 30
 DURATA_CONN_SECONDI = 10
 
 def utente_virtuale(id):

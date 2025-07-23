@@ -4,6 +4,14 @@
 
 ServerConfig::ServerConfig() : _port(80) {}
 
+bool ServerConfig::isValid() const {
+    if (_serverName.empty()) {
+        std::cerr << "Error: server_name is required but not specified" << std::endl;
+        return false;
+    }
+    return true;
+}
+
 const LocationConfig* ServerConfig::findLocation(const std::string& path) const {
 	const LocationConfig* best = NULL;
 	size_t bestLen = 0;

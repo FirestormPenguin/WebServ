@@ -16,7 +16,6 @@ private:
 
 	void parseRequestLine(std::istringstream &stream);
 	void parseHeaders(std::istringstream &stream);
-	void parseBody(std::istringstream &stream);
 
 public:
 	Request(const std::string &rawRequest);
